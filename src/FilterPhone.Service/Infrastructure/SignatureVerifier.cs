@@ -21,9 +21,10 @@ internal static unsafe class SignatureVerifier
             return false;
         }
         var fi = new FileInfo(path);
+        var key = path + "\0" + expectedOrganization;
         lock (Cache)
         {
-            if (Cache.TryGetValue(path, out var c) && c.Modified == fi.LastWriteTimeUtc && c.Size == fi.Length)
+            if (Cache.TryGetValue(key, out var c) && c.Modified == fi.LastWriteTimeUtc && c.Size == fi.Length)
             {
                 reason = c.Reason;
                 return c.Ok;
@@ -32,7 +33,7 @@ internal static unsafe class SignatureVerifier
         var ok = Verify(path, expectedOrganization, out reason);
         lock (Cache)
         {
-            Cache[path] = (fi.LastWriteTimeUtc, fi.Length, ok, reason);
+            Cache[key] = (fi.LastWriteTimeUtc, fi.Length, ok, reason);
         }
         return ok;
     }

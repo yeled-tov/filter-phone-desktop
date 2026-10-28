@@ -114,7 +114,7 @@ internal sealed class BrowserWatchdog(ILogger<BrowserWatchdog> log) : Background
     {
         try
         {
-            proc.Kill();
+            proc.Kill(entireProcessTree: true);
             log.LogInformation("Blocked browser terminated: {Name} ({Product})", snapshot.FileName,
                 snapshot.ProductName ?? "?");
         }

@@ -15,11 +15,32 @@ public sealed class BrowserWatchdogTests : IDisposable
 
     public void Dispose()
     {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                Directory.Delete(_dir, recursive: true);
+                return;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // The fake process may not have released its image file yet; wait briefly and retry.
+                Thread.Sleep(200);
+            }
+        }
+    }
+
+    private static void KillAndWait(Process p)
+    {
         try
         {
-            Directory.Delete(_dir, recursive: true);
+            if (!p.HasExited)
+            {
+                p.Kill(entireProcessTree: true);
+            }
+            p.WaitForExit(5000);
         }
-        catch (IOException)
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
         }
     }
@@ -49,6 +70,7 @@ public sealed class BrowserWatchdogTests : IDisposable
         var killed = watchdog.ScanAndTerminate(s => string.Equals(s.FileName, "fakebrowser.exe", StringComparison.OrdinalIgnoreCase), NullLogger.Instance);
         Assert.True(killed >= 1);
         Assert.True(WaitForExit(fake), "the blocked process should have been terminated");
+        KillAndWait(fake);
     }
 
     [Fact]
@@ -64,10 +86,7 @@ public sealed class BrowserWatchdogTests : IDisposable
         }
         finally
         {
-            if (!fake.HasExited)
-            {
-                fake.Kill();
-            }
+            KillAndWait(fake);
         }
     }
 
@@ -91,10 +110,7 @@ public sealed class BrowserWatchdogTests : IDisposable
         }
         finally
         {
-            if (!systemCmd.HasExited)
-            {
-                systemCmd.Kill();
-            }
+            KillAndWait(systemCmd);
         }
     }
 }
