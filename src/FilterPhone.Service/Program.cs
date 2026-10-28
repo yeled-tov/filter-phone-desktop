@@ -58,6 +58,7 @@ builder.Services.AddSingleton<TrustStore>();
 builder.Services.AddSingleton<ChromeOnlyEnforcer>();
 builder.Services.AddSingleton<ProtectionEngine>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ProtectionEngine>());
+builder.Services.AddHostedService<FilterPhone.Service.Policy.BrowserWatchdog>();
 builder.Services.AddHostedService<PipeServer>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

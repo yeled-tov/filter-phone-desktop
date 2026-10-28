@@ -48,6 +48,7 @@ VPN ומפתח משלו, ומדווח ב-heartbeat בדיוק כמו טלפון.
 - `Network/WfpKillSwitch` — מסננים קבועים ב-WFP (ראו SECURITY.md).
 - `Trust/TrustStore` — מוסיף/מסיר את תעודת הסינון ב-`LocalMachine\Root`.
 - `Policy/ChromeOnlyEnforcer` + `LaunchProbe` — אכיפת Chrome-בלבד ואימות אמיתי.
+- `Policy/BrowserWatchdog` — סוגר מיד כל דפדפן חסום שנפתח (מקביל ל"מגן" באנדרואיד; האכיפה הראשית ב-Home).
 - `Verification/NetworkVerifier` — הבדיקות בפועל (HTTPS, תמונה, תעבורה).
 - `Engine/ProtectionEngine` — לולאת ההגנה: מיישרת כל שכבה, עם backoff חסום.
 - `Ipc/PipeServer` — Named Pipe עם ACL מצמצם ומערכת פקודות קבועה.

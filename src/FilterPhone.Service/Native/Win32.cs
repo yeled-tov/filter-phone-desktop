@@ -99,6 +99,16 @@ internal static unsafe partial class Win32
         uint creationFlags, IntPtr environment, string currentDirectory, STARTUPINFOW* startupInfo,
         PROCESS_INFORMATION* processInformation);
 
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    public const uint PROCESS_TERMINATE = 0x0001;
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    internal static partial IntPtr OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static unsafe partial bool QueryFullProcessImageName(IntPtr process, uint flags, char* name, ref uint size);
+
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool TerminateProcess(IntPtr process, uint exitCode);
