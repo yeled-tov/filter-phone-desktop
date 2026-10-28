@@ -29,8 +29,13 @@ FilterPhone לאנדרואיד: **VPN (WireGuard)** אל שרת FilterPhone, **�
 
 ## מה בונים ואיך (GitHub Actions)
 
-כל דחיפה בונה ובודקת הכול על Windows runner, בלי צורך במחשב מקומי:
-`Actions → Build FilterPhone Desktop`. הבנייה כוללת בדיקת פורמט, בנייה עם
+כל דחיפה אמורה לבנות ולבדוק הכול על Windows runner:
+`Actions → Build FilterPhone Desktop`.
+
+> **שימו לב:** במאגר הפרטי הזה ריצות ה-Actions על Windows נכשלות כרגע תוך שניות
+> ללא הקצאת runner — חסם ברמת חשבון GitHub על runners מתארחים ל-Windows (מכסת
+> דקות / תקרת הוצאה), שקיים עוד מאב-הטיפוס. יש לפתור ב-Settings → Billing או
+> להשתמש ב-runner עצמי. ה-workflow עצמו תקין. ראו [docs/TESTED.md](docs/TESTED.md). הבנייה כוללת בדיקת פורמט, בנייה עם
 אזהרות-כשגיאות, בדיקות יחידה, **בדיקות חוזה מול קוד השרת האמיתי**, בדיקות Windows
 (WFP, DPAPI, AppLocker, מאגר תעודות), אימות ה-MSI הרשמי של WireGuard (SHA‑256
 וחתימת WireGuard LLC), SBOM, ובניית ה-EXE. לפרסום גרסה: תג `vX.Y.Z` יוצר Release
