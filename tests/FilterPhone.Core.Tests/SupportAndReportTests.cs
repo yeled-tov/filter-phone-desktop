@@ -64,6 +64,7 @@ public class ProductConfigTests
         var c = ProductConfig.Current;
         Assert.Equal(new Uri("https://api.filterphone.com"), c.ApiBaseUrl);
         Assert.Equal("972527186881", c.SupportWhatsApp);
+        Assert.Equal("ywldyld@gmail.com", c.SupportEmail);
         Assert.Equal("development", c.Channel);
     }
 

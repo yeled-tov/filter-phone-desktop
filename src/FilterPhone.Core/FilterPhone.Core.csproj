@@ -14,10 +14,11 @@
   </ItemGroup>
   <PropertyGroup>
     <!-- Build-time product settings. Defaults are the values verified in the FilterPhone source
-         (app/lib/src/config.dart, server settings). The support e-mail has no verified value in any
-         FilterPhone source, so it stays empty until the owner sets FpSupportEmail for a release. -->
+         (app/lib/src/config.dart, server settings); the support e-mail was provided by the product
+         owner. Any of these can be overridden at build time (e.g. -p:FpSupportEmail=...). -->
     <FpApiBaseUrl Condition="'$(FpApiBaseUrl)' == ''">https://api.filterphone.com</FpApiBaseUrl>
     <FpSupportWhatsApp Condition="'$(FpSupportWhatsApp)' == ''">972527186881</FpSupportWhatsApp>
+    <FpSupportEmail Condition="'$(FpSupportEmail)' == ''">ywldyld@gmail.com</FpSupportEmail>
     <FpChannel Condition="'$(FpChannel)' == ''">development</FpChannel>
   </PropertyGroup>
   <ItemGroup>
