@@ -19,13 +19,21 @@
 #define ServiceExe "FilterPhone.Service.exe"
 #define AppExe "FilterPhone.exe"
 
+; VersionInfoVersion (the binary file version) must be purely numeric (x.x.x.x), so strip any
+; pre-release suffix such as "-ci.7". AppVersion keeps the full value for display.
+#if Pos("-", AppVersion) > 0
+  #define NumericVersion Copy(AppVersion, 1, Pos("-", AppVersion) - 1)
+#else
+  #define NumericVersion AppVersion
+#endif
+
 [Setup]
 AppId={{3F7B9C2E-7A41-4D6E-9B2C-FE11A0C7D501}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#NumericVersion}
 DefaultDirName={autopf}\FilterPhone Desktop
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
