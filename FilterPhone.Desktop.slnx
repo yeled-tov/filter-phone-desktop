@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FilterPhone.App/FilterPhone.App.csproj" />
+    <Project Path="src/FilterPhone.Core/FilterPhone.Core.csproj" />
+    <Project Path="src/FilterPhone.Service/FilterPhone.Service.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FilterPhone.Core.Tests/FilterPhone.Core.Tests.csproj" />
+    <Project Path="tests/FilterPhone.Windows.Tests/FilterPhone.Windows.Tests.csproj" />
+  </Folder>
+</Solution>
