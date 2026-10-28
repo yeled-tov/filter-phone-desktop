@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Platform-neutral logic: API contract, validation, config rendering, policy builders.
+       No Windows APIs here so that it is unit-tested on every OS. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FilterPhone.Core</RootNamespace>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" />
+  </ItemGroup>
+  <PropertyGroup>
+    <!-- Build-time product settings. Defaults are the values verified in the FilterPhone source
+         (app/lib/src/config.dart, server settings). The support e-mail has no verified value in any
+         FilterPhone source, so it stays empty until the owner sets FpSupportEmail for a release. -->
+    <FpApiBaseUrl Condition="'$(FpApiBaseUrl)' == ''">https://api.filterphone.com</FpApiBaseUrl>
+    <FpSupportWhatsApp Condition="'$(FpSupportWhatsApp)' == ''">972527186881</FpSupportWhatsApp>
+    <FpChannel Condition="'$(FpChannel)' == ''">development</FpChannel>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="FilterPhone.ApiBaseUrl" Value="$(FpApiBaseUrl)" />
+    <AssemblyMetadata Include="FilterPhone.SupportWhatsApp" Value="$(FpSupportWhatsApp)" />
+    <AssemblyMetadata Include="FilterPhone.SupportEmail" Value="$(FpSupportEmail)" />
+    <AssemblyMetadata Include="FilterPhone.ExpectedCaSha256" Value="$(FpExpectedCaSha256)" />
+    <AssemblyMetadata Include="FilterPhone.Channel" Value="$(FpChannel)" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FilterPhone.Core.Tests" />
+  </ItemGroup>
+</Project>
