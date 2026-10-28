@@ -89,28 +89,43 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Start the backend contract harness
+      - name: Install the backend contract harness dependencies
+        shell: pwsh
+        run: python -m pip install --quiet fastapi "uvicorn[standard]" pydantic argon2-cffi "redis>=5" fakeredis pillow segno cryptography numpy
+
+      # The harness and the contract tests run in one step so the harness is guaranteed alive, and we poll
+      # the real HTTP port (not just the info file) so the server is actually listening before testing.
+      - name: Contract tests against the real backend API
         shell: pwsh
         run: |
-          python -m pip install --quiet fastapi "uvicorn[standard]" pydantic argon2-cffi "redis>=5" fakeredis pillow segno cryptography numpy
           $info = "$env:RUNNER_TEMP\contract.json"
-          "FP_CONTRACT_INFO=$info" | Out-File -FilePath $env:GITHUB_ENV -Append
-          $p = Start-Process -FilePath python `
+          if (Test-Path $info) { Remove-Item $info }
+          $harness = Start-Process -FilePath python -PassThru `
             -ArgumentList @('-I', "$PWD\tests\contract\backend_harness.py", "$PWD\backend\server", '8765', $info) `
-            -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\harness.out" -RedirectStandardError "$env:RUNNER_TEMP\harness.err"
-          for ($i = 0; $i -lt 30; $i++) {
-            if (Test-Path $info) { break }
-            if ($p.HasExited) { Get-Content "$env:RUNNER_TEMP\harness.err"; throw "Backend harness exited early." }
-            Start-Sleep -Seconds 1
+            -RedirectStandardOutput "$env:RUNNER_TEMP\harness.out" -RedirectStandardError "$env:RUNNER_TEMP\harness.err"
+          try {
+            $up = $false
+            for ($i = 0; $i -lt 60 -and -not $harness.HasExited; $i++) {
+              try {
+                if ((Invoke-WebRequest -Uri 'http://127.0.0.1:8765/health' -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) {
+                  $up = $true; break
+                }
+              } catch { Start-Sleep -Seconds 1 }
+            }
+            if (-not $up) {
+              Write-Host "---- harness stdout ----"; if (Test-Path "$env:RUNNER_TEMP\harness.out") { Get-Content "$env:RUNNER_TEMP\harness.out" }
+              Write-Host "---- harness stderr ----"; if (Test-Path "$env:RUNNER_TEMP\harness.err") { Get-Content "$env:RUNNER_TEMP\harness.err" }
+              throw "Backend contract harness did not become healthy."
+            }
+            Write-Host "Backend contract harness is healthy."
+            $env:FP_CONTRACT_INFO = $info
+            dotnet test tests/FilterPhone.Core.Tests -c Release --no-build `
+              --filter "Category=Contract" --logger "trx;LogFileName=contract.trx" --results-directory artifacts/test-results
+            if ($LASTEXITCODE -ne 0) { throw "Contract tests failed." }
           }
-          if (-not (Test-Path $info)) { Get-Content "$env:RUNNER_TEMP\harness.err"; throw "Backend harness did not start." }
-          Write-Host "Backend contract harness is up."
-
-      - name: Contract tests (real backend API)
-        run: >
-          dotnet test tests/FilterPhone.Core.Tests -c Release --no-build
-          --filter "Category=Contract" --logger "trx;LogFileName=contract.trx"
-          --results-directory artifacts/test-results
+          finally {
+            if (-not $harness.HasExited) { Stop-Process -Id $harness.Id -Force }
+          }
 
       # ----- Windows platform tests (elevated: WFP, DPAPI, AppLocker, trust store) -----
       - name: Create a standard test account for AppLocker evaluation
