@@ -1,0 +1,67 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace FilterPhone.Service.Infrastructure;
+
+/// <summary>
+/// Non-secret persistent state (state.json in the protected data folder). Secrets (token, private key,
+/// VPN settings) are kept separately in <see cref="SecretStore"/>.
+/// </summary>
+internal sealed class MachineState
+{
+    public bool Enrolled { get; set; }
+    public int? DeviceId { get; set; }
+    public string? DeviceName { get; set; }
+    public string? LevelName { get; set; }
+    public string DeviceUid { get; set; } = string.Empty;
+    public string? TunnelAddress { get; set; }
+    public string? VpnFingerprint { get; set; }
+    public string? ServerStatus { get; set; }
+    public string? ServerMessage { get; set; }
+    public int? PolicyVersion { get; set; }
+    public int HeartbeatIntervalSeconds { get; set; } = 900;
+    public string SupportWhatsApp { get; set; } = string.Empty;
+
+    /// <summary>Last resolved addresses, used while DNS outside the tunnel is blocked by the kill switch.</summary>
+    public List<string> EndpointAddresses { get; set; } = [];
+    public List<string> ApiAddresses { get; set; } = [];
+
+    /// <summary>The kill switch is enabled after the tunnel has been verified once, then kept on permanently.</summary>
+    public bool NetworkLockEnabled { get; set; }
+    public bool TunnelEverVerified { get; set; }
+    public DateTimeOffset? ProtectedSince { get; set; }
+
+    /// <summary>Thumbprints (SHA-1, as used by the Windows store) of CA certificates this product added.</summary>
+    public List<string> TrustedCaThumbprints { get; set; } = [];
+    public string? CurrentCaSha256 { get; set; }
+
+    public string? AppLockerMode { get; set; }          // "local" / "csp" when our policy is applied
+    public int? AppIdSvcOriginalStart { get; set; }
+    public Dictionary<string, string?> PolicyBackup { get; set; } = [];
+
+    public DateTimeOffset? LastRekeyAttempt { get; set; }
+
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    public static MachineState Load()
+    {
+        try
+        {
+            if (File.Exists(Paths.StateFile))
+            {
+                return JsonSerializer.Deserialize<MachineState>(File.ReadAllBytes(Paths.StateFile), Options) ?? new MachineState();
+            }
+        }
+        catch (JsonException)
+        {
+            // A corrupt state file must not stop protection; secrets and the kill switch live elsewhere.
+        }
+        return new MachineState();
+    }
+
+    public void Save() => SecureDirectory.WriteAllBytesAtomic(Paths.StateFile, JsonSerializer.SerializeToUtf8Bytes(this, Options));
+}
