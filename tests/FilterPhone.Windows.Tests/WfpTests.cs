@@ -61,14 +61,21 @@ public sealed class WfpKillSwitchIntegrationTests : IDisposable
 
     private static KillSwitchRule BlockTestNet() => new()
     {
-        Name = "test: block TEST-NET-1", Action = RuleAction.Block, Family = AddressFamily.InterNetwork,
-        Weight = KillSwitchPlan.BlockWeight, RemoteNetworks = [(IPAddress.Parse("192.0.2.0"), 24)],
+        Name = "test: block TEST-NET-1",
+        Action = RuleAction.Block,
+        Family = AddressFamily.InterNetwork,
+        Weight = KillSwitchPlan.BlockWeight,
+        RemoteNetworks = [(IPAddress.Parse("192.0.2.0"), 24)],
     };
 
     private static KillSwitchRule PermitOne() => new()
     {
-        Name = "test: permit one host", Action = RuleAction.Permit, Family = AddressFamily.InterNetwork,
-        Weight = KillSwitchPlan.PermitWeight, Protocol = RuleProtocol.Tcp, RemotePort = 80,
+        Name = "test: permit one host",
+        Action = RuleAction.Permit,
+        Family = AddressFamily.InterNetwork,
+        Weight = KillSwitchPlan.PermitWeight,
+        Protocol = RuleProtocol.Tcp,
+        RemotePort = 80,
         RemoteNetworks = [(Permitted, 32)],
     };
 

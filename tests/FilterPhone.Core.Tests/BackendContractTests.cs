@@ -106,8 +106,12 @@ public sealed class BackendContractTests : IDisposable
         var r = await _client.EnrollAsync(_info.Code, keys.PublicKey, "HB", Uid(), default);
         var hb = await _client.HeartbeatAsync(r.Token, new HeartbeatReport
         {
-            AppVersion = ProductConfig.Version, DeviceUid = Uid(), VpnState = "DOWN", KillSwitchActive = true,
-            TunnelAutoStart = true, CaInstalled = true,
+            AppVersion = ProductConfig.Version,
+            DeviceUid = Uid(),
+            VpnState = "DOWN",
+            KillSwitchActive = true,
+            TunnelAutoStart = true,
+            CaInstalled = true,
         }, default);
         Assert.Equal("active", hb.Status);
         Assert.NotNull(hb.PolicyVersion);

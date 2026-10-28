@@ -5,6 +5,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>FilterPhone.Core</RootNamespace>
     <IsTrimmable>false</IsTrimmable>
+    <!-- Core is published inside the win-x64 service/app, so its lock file must carry win-x64 assets
+         for locked-mode restore + publish to agree. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" />

@@ -82,7 +82,11 @@ public static partial class Updater
             var file = new WinTrustFileInfo { cbStruct = (uint)sizeof(WinTrustFileInfo), pcwszFilePath = pathPtr };
             var data = new WinTrustData
             {
-                cbStruct = (uint)sizeof(WinTrustData), dwUIChoice = 2, dwUnionChoice = 1, pFile = (IntPtr)(&file), dwStateAction = 1,
+                cbStruct = (uint)sizeof(WinTrustData),
+                dwUIChoice = 2,
+                dwUnionChoice = 1,
+                pFile = (IntPtr)(&file),
+                dwStateAction = 1,
             };
             var action = new Guid("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
             var result = WinVerifyTrust(new IntPtr(-1), &action, &data);

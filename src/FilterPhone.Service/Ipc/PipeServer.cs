@@ -118,30 +118,30 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
                 return Ok(req, Snapshot(engine.Snapshot));
 
             case IpcProtocol.Commands.Enroll:
-            {
-                IpcProtocol.RejectUnknownArgs(req.Args, "code", "deviceName");
-                var code = IpcProtocol.OptionalString(req.Args, "code", 80, CodePattern())?.Trim()
-                    ?? throw new InvalidDataException("code is required");
-                var name = IpcProtocol.OptionalString(req.Args, "deviceName", 60, IpcProtocol.DeviceNamePattern())?.Trim() ?? string.Empty;
-                if (!FilterPhoneApiClient.IsPlausibleCode(code))
                 {
-                    return Error(req, IpcProtocol.Errors.InvalidCode, null);
+                    IpcProtocol.RejectUnknownArgs(req.Args, "code", "deviceName");
+                    var code = IpcProtocol.OptionalString(req.Args, "code", 80, CodePattern())?.Trim()
+                        ?? throw new InvalidDataException("code is required");
+                    var name = IpcProtocol.OptionalString(req.Args, "deviceName", 60, IpcProtocol.DeviceNamePattern())?.Trim() ?? string.Empty;
+                    if (!FilterPhoneApiClient.IsPlausibleCode(code))
+                    {
+                        return Error(req, IpcProtocol.Errors.InvalidCode, null);
+                    }
+                    if (!_enrollLimit.Allow())
+                    {
+                        return Error(req, IpcProtocol.Errors.RateLimited, null);
+                    }
+                    try
+                    {
+                        await engine.EnrollAsync(code, name, ct).ConfigureAwait(false);
+                        return Ok(req, Snapshot(engine.Snapshot));
+                    }
+                    catch (EnrollmentException e)
+                    {
+                        log.LogWarning("Enrolment refused: {Code}", e.Code);
+                        return Error(req, e.Code, e.ServerMessage);
+                    }
                 }
-                if (!_enrollLimit.Allow())
-                {
-                    return Error(req, IpcProtocol.Errors.RateLimited, null);
-                }
-                try
-                {
-                    await engine.EnrollAsync(code, name, ct).ConfigureAwait(false);
-                    return Ok(req, Snapshot(engine.Snapshot));
-                }
-                catch (EnrollmentException e)
-                {
-                    log.LogWarning("Enrolment refused: {Code}", e.Code);
-                    return Error(req, e.Code, e.ServerMessage);
-                }
-            }
 
             case IpcProtocol.Commands.Verify:
                 IpcProtocol.RejectUnknownArgs(req.Args);

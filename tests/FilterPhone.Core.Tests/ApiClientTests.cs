@@ -178,8 +178,15 @@ public class ApiClientTests
         using var client = new FilterPhoneApiClient(Base, handler: handler);
         var r = await client.HeartbeatAsync("tok", new HeartbeatReport
         {
-            AppVersion = "1.0.0", DeviceUid = "0123456789abcdef", VpnState = "UP", HandshakeAgeSeconds = 12,
-            KillSwitchActive = true, TunnelAutoStart = true, CaInstalled = true, PolicyVersion = 4, DataOk = true,
+            AppVersion = "1.0.0",
+            DeviceUid = "0123456789abcdef",
+            VpnState = "UP",
+            HandshakeAgeSeconds = 12,
+            KillSwitchActive = true,
+            TunnelAutoStart = true,
+            CaInstalled = true,
+            PolicyVersion = 4,
+            DataOk = true,
             VpnError = new string('x', 300),
         }, default);
         Assert.Equal(4, r.PolicyVersion);

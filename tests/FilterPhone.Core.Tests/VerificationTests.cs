@@ -10,10 +10,16 @@ public class VerificationTests
 
     private static TlsProbeOutcome Probe(string root, bool trusted = true, int? status = 200, string? ct = "text/html",
         string? header = null) => new()
-    {
-        Target = "t", Connected = true, PresentedChain = ["leaf", root], BuiltChain = ["leaf", root],
-        TrustedBySystem = trusted, HttpStatus = status, ContentType = ct, FilterHeader = header,
-    };
+        {
+            Target = "t",
+            Connected = true,
+            PresentedChain = ["leaf", root],
+            BuiltChain = ["leaf", root],
+            TrustedBySystem = trusted,
+            HttpStatus = status,
+            ContentType = ct,
+            FilterHeader = header,
+        };
 
     [Fact]
     public void Interception_requires_the_filtering_ca()

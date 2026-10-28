@@ -60,16 +60,26 @@ internal static class NetworkVerifier
             var header = res.Headers.TryGetValues("x-filterphone", out var v) ? v.FirstOrDefault() : null;
             return new TlsProbeOutcome
             {
-                Target = url.Host, Connected = true, PresentedChain = built, BuiltChain = built, TrustedBySystem = trusted,
-                HttpStatus = (int)res.StatusCode, ContentType = res.Content.Headers.ContentType?.MediaType, FilterHeader = header,
+                Target = url.Host,
+                Connected = true,
+                PresentedChain = built,
+                BuiltChain = built,
+                TrustedBySystem = trusted,
+                HttpStatus = (int)res.StatusCode,
+                ContentType = res.Content.Headers.ContentType?.MediaType,
+                FilterHeader = header,
             };
         }
         catch (HttpRequestException e)
         {
             return new TlsProbeOutcome
             {
-                Target = url.Host, Connected = sawCertificate, PresentedChain = built, BuiltChain = built,
-                TrustedBySystem = false, Error = e.HttpRequestError.ToString(),
+                Target = url.Host,
+                Connected = sawCertificate,
+                PresentedChain = built,
+                BuiltChain = built,
+                TrustedBySystem = false,
+                Error = e.HttpRequestError.ToString(),
             };
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)

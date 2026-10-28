@@ -112,7 +112,10 @@ public static class KillSwitchPlan
             rules.Add(new KillSwitchRule
             {
                 Name = $"Permit WireGuard to the FilterPhone VPN endpoint ({(group.Key == v4 ? "IPv4" : "IPv6")})",
-                Action = RuleAction.Permit, Family = group.Key, Weight = PermitWeight, Protocol = RuleProtocol.Udp,
+                Action = RuleAction.Permit,
+                Family = group.Key,
+                Weight = PermitWeight,
+                Protocol = RuleProtocol.Udp,
                 RemotePort = inputs.EndpointPort,
                 RemoteNetworks = group.Select(a => (a, a.AddressFamily == v4 ? 32 : 128)).ToList(),
             });
@@ -123,8 +126,12 @@ public static class KillSwitchPlan
             rules.Add(new KillSwitchRule
             {
                 Name = $"Permit the FilterPhone service to reach the FilterPhone API ({(group.Key == v4 ? "IPv4" : "IPv6")})",
-                Action = RuleAction.Permit, Family = group.Key, Weight = PermitWeight, Protocol = RuleProtocol.Tcp,
-                RemotePort = 443, ApplicationPath = inputs.ServiceExecutablePath,
+                Action = RuleAction.Permit,
+                Family = group.Key,
+                Weight = PermitWeight,
+                Protocol = RuleProtocol.Tcp,
+                RemotePort = 443,
+                ApplicationPath = inputs.ServiceExecutablePath,
                 RemoteNetworks = group.Select(a => (a, a.AddressFamily == v4 ? 32 : 128)).ToList(),
             });
         }
