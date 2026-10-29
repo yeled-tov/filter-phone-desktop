@@ -13,6 +13,7 @@ internal static class SecretStore
     public const string PrivateKey = "wg-private-key";
     public const string VpnJson = "vpn-settings";
     public const string CaPem = "filtering-ca";
+    public const string RemovalKey = "removal-key";       // verifies removal codes issued in the dashboard
 
     private static readonly byte[] Entropy = "FilterPhone.Desktop.SecretStore.v1"u8.ToArray();
 
@@ -54,6 +55,9 @@ internal static class SecretStore
         }
     }
 
+    /// <summary>True when the secret exists (does not decrypt it).</summary>
+    public static bool Has(string name) => File.Exists(PathOf(name));
+
     public static void Delete(string name)
     {
         var path = PathOf(name);
@@ -65,7 +69,7 @@ internal static class SecretStore
 
     public static void DeleteAll()
     {
-        foreach (var n in new[] { Token, PrivateKey, VpnJson, CaPem })
+        foreach (var n in new[] { Token, PrivateKey, VpnJson, CaPem, RemovalKey })
         {
             Delete(n);
         }

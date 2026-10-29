@@ -40,7 +40,27 @@ public sealed record DeviceInfo(
 }
 
 /// <summary><c>POST /v1/device/heartbeat</c> response (Services.heartbeat).</summary>
-public sealed record HeartbeatResult(string Status, int? PolicyVersion, int IntervalSeconds, string Message);
+public sealed record HeartbeatResult(string Status, int? PolicyVersion, int IntervalSeconds, string Message)
+{
+    /// <summary>What the administrator set in the dashboard; null when the server does not send it.</summary>
+    public DesktopControls? Controls { get; init; }
+
+    /// <summary>This PC's removal-code key, sent only when the PC asked for it; null otherwise.</summary>
+    public string? RemovalKey { get; init; }
+
+    public override string ToString() =>
+        $"HeartbeatResult(status={Status}, policy={PolicyVersion}, controls={Controls}, removalKey={(RemovalKey is null ? "none" : "<redacted>")})";
+}
+
+/// <summary>
+/// The dashboard's settings for a Windows PC (server: DeviceSettings.desktop). The PC applies a restriction
+/// only if its administrator also consented to it in the installer; the dashboard can turn one off or back on.
+/// </summary>
+public sealed record DesktopControls(bool ChromeOnly, bool BlockStore);
+
+/// <summary>What the PC verified, per protection layer, for the dashboard (server: heartbeat "windows").</summary>
+public sealed record WindowsReport(string Overall, string Edition, string Build, long? ProtectedSince,
+    IReadOnlyDictionary<string, string> Layers);
 
 /// <summary>
 /// What the desktop client reports in a heartbeat. Only fields the server keeps
@@ -62,6 +82,9 @@ public sealed record HeartbeatReport
     public string? DataError { get; init; }
     public int DataFails { get; init; }
     public int? DataFailAgeSeconds { get; init; }
+    public WindowsReport? Windows { get; init; }
+    /// <summary>Ask the server for this PC's removal-code key (until the PC holds one).</summary>
+    public bool WantRemovalKey { get; init; }
 
     internal Dictionary<string, object?> ToJsonBody()
     {
@@ -82,6 +105,28 @@ public sealed record HeartbeatReport
         };
         AddIf(body, "policy_version", PolicyVersion);
         AddIf(body, "ca_installed", CaInstalled);
+        if (Windows is { } w)
+        {
+            var win = new Dictionary<string, object?>
+            {
+                ["overall"] = Truncate(w.Overall),
+                ["edition"] = Truncate(w.Edition),
+                ["build"] = Truncate(w.Build),
+            };
+            AddIf(win, "protected_since", w.ProtectedSince);
+            foreach (var (layer, state) in w.Layers)
+            {
+                if (Status.Layers.All.Contains(layer))
+                {
+                    win[layer] = state;
+                }
+            }
+            body["windows"] = win;
+        }
+        if (WantRemovalKey)
+        {
+            body["want_removal_key"] = true;
+        }
         return body;
     }
 

@@ -54,7 +54,9 @@ VPN ומפתח משלו, ומדווח ב-heartbeat בדיוק כמו טלפון.
 - `Engine/ProtectionEngine` — לולאת ההגנה: מיישרת כל שכבה, עם backoff חסום.
 - `Ipc/PipeServer` — Named Pipe עם ACL מצמצם ומערכת פקודות קבועה.
 - מצבי שורת פקודה: `--cleanup`, `--remove-network-lock`, `--status`,
-  `--verify`, `--diagnostics`, `--enroll`.
+  `--verify`, `--diagnostics`, `--enroll`, `--removal-status`, `--authorize-removal CODE`.
+- `Infrastructure/Choices` — מה נאכף בפועל: הסכמת ההתקנה וגם ההגדרה מהדשבורד.
+- `Infrastructure/RemovalGate` + `Core/Removal/RemovalCode` — קוד הסרה מהדשבורד.
 
 ### FilterPhone.App — הממשק בעברית (משתמש רגיל, בלי מנהל)
 WPF עם `FlowDirection=RightToLeft`, מודע-DPI לכל מסך. מדבר עם השירות דרך ה-pipe

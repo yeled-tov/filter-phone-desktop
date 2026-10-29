@@ -121,7 +121,8 @@ begin
 
   ConsentPage := CreateInputOptionPage(wpLicense,
     'הרשאות ואבטחה', 'FilterPhone מבקש את האישורים הבאים כדי להגן על המחשב',
-    'סמנו את האישורים. בלי שלושת הראשונים ההגנה לא תהיה מלאה. כל אחד מהם מתבטל בהסרת התוכנה.',
+    'סמנו את האישורים. בלי שלושת הראשונים ההגנה לא תהיה מלאה. כל אחד מהם מתבטל בהסרת התוכנה.' + #13#10 +
+    'חשוב: אחרי הפעלת המחשב בקוד הפעלה, הסרת התוכנה תדרוש קוד הסרה שמתקבל מ-FilterPhone.',
     False, False);
   ConsentPage.Add(
     'התקנת תעודת הסינון של FilterPhone במאגר התעודות של המחשב. התעודה מאפשרת לסנן תמונות באתרים ' +
@@ -153,6 +154,40 @@ begin
         Result := False;
     end;
   end;
+end;
+
+// ---------------------------------------------------------------- הסרה
+// On an activated PC, removing FilterPhone needs a removal code that FilterPhone issues in its dashboard for
+// this PC. The code is checked by the protection service; FilterPhone.Service.exe --cleanup refuses as well
+// without it. Silent uninstall: unins000.exe /SILENT /REMOVALCODE=XXXXX-XXXXX
+
+function RemovalStatus(): Integer;
+var
+  ResultCode: Integer;
+begin
+  // 0 = may proceed, 10 = a removal code is needed. If the service program cannot run, nothing protects the PC.
+  if Exec(ExpandConstant('{app}\{#ServiceExe}'), '--removal-status', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Result := ResultCode
+  else
+    Result := 0;
+end;
+
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+  Code: String;
+begin
+  Result := True;
+  if RemovalStatus() <> 10 then
+    exit;
+  Code := ExpandConstant('{param:REMOVALCODE|}');
+  if Code <> '' then
+    Exec(ExpandConstant('{app}\{#ServiceExe}'), '--authorize-removal "' + Code + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+  else if not UninstallSilent() then
+    Exec(ExpandConstant('{app}\{#AppExe}'), '--authorize-removal', '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
+  Result := RemovalStatus() <> 10;
+  if (not Result) and (not UninstallSilent()) then
+    MsgBox('FilterPhone לא הוסר: נדרש קוד הסרה מ-FilterPhone. ההגנה במחשב ממשיכה לפעול.', mbInformation, MB_OK);
 end;
 
 function WireGuardMsiTrusted(): Boolean;

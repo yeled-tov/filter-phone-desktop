@@ -41,6 +41,7 @@ internal sealed class MachineState
     public Dictionary<string, string?> PolicyBackup { get; set; } = [];
 
     public DateTimeOffset? LastRekeyAttempt { get; set; }
+    public DateTimeOffset? RemovalAuthorizedUntil { get; set; }   // set when a valid removal code was entered
 
     private static readonly JsonSerializerOptions Options = new()
     {

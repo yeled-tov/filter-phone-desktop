@@ -138,6 +138,64 @@ public sealed class BackendContractTests : IDisposable
         Assert.Contains("\"platform\":\"windows\"", json.Replace(" ", "", StringComparison.Ordinal), StringComparison.Ordinal);
     }
 
+    private async Task<HttpClient> AdminAsync()
+    {
+        var http = new HttpClient { BaseAddress = new Uri(_info.BaseUrl) };
+        var login = await http.PostAsJsonAsync("/v1/admin/login", new { username = _info.AdminUser, password = _info.AdminPassword });
+        login.EnsureSuccessStatusCode();
+        var token = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString();
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        return http;
+    }
+
+    /// <summary>
+    /// The computers tab (server: api/removal.py, DeviceSettings.desktop). Against a server that has it, the
+    /// dashboard's controls reach the PC and a removal code issued by the dashboard verifies on the PC with the
+    /// key the server sent. Against an older server, the PC must see no controls and no key, so it neither
+    /// relaxes anything nor ever requires a code that could not be issued.
+    /// </summary>
+    [Fact]
+    public async Task Dashboard_controls_and_removal_codes_round_trip_or_are_absent_on_an_older_server()
+    {
+        using var keys = WireGuardKeys.Generate();
+        var r = await _client.EnrollAsync(_info.Code, keys.PublicKey, "Removal check", Uid(), default);
+        var report = new HeartbeatReport
+        {
+            AppVersion = ProductConfig.Version,
+            DeviceUid = Uid(),
+            VpnState = "UP",
+            WantRemovalKey = true,
+            Windows = new WindowsReport("Protected", "Professional", "22631", null,
+                Status.Layers.All.ToDictionary(l => l, _ => "ok")),
+        };
+        var hb = await _client.HeartbeatAsync(r.Token, report, default);
+        using var admin = await AdminAsync();
+        var issue = await admin.PostAsync($"/v1/admin/devices/{r.DeviceId}/removal-code", null);
+        if (hb.Controls is null)
+        {
+            Assert.Null(hb.RemovalKey);
+            Assert.False(issue.IsSuccessStatusCode);
+            return;
+        }
+
+        Assert.Equal(new DesktopControls(true, true), hb.Controls);
+        Assert.NotNull(hb.RemovalKey);
+        issue.EnsureSuccessStatusCode();
+        var code = (await issue.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString();
+        Assert.True(Removal.RemovalCode.Verify(hb.RemovalKey, r.DeviceId, code, DateTimeOffset.UtcNow));
+        Assert.False(Removal.RemovalCode.Verify(hb.RemovalKey, r.DeviceId + 1, code, DateTimeOffset.UtcNow));
+
+        var patch = await admin.PatchAsJsonAsync($"/v1/admin/devices/{r.DeviceId}", new { desktop = new { block_store = false } });
+        patch.EnsureSuccessStatusCode();
+        var after = await _client.HeartbeatAsync(r.Token, report with { WantRemovalKey = false }, default);
+        Assert.Equal(new DesktopControls(ChromeOnly: true, BlockStore: false), after.Controls);
+        Assert.Null(after.RemovalKey);                     // sent only when the PC asks for it
+
+        var detail = await admin.GetStringAsync($"/v1/admin/devices/{r.DeviceId}");
+        Assert.DoesNotContain(hb.RemovalKey!, detail, StringComparison.Ordinal);   // the dashboard never shows the key
+        Assert.Contains("\"store_block\":\"ok\"", detail.Replace(" ", "", StringComparison.Ordinal), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Server_outage_is_a_transient_network_error()
     {

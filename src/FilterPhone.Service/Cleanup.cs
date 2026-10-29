@@ -10,12 +10,21 @@ namespace FilterPhone.Service;
 /// <summary>
 /// Restores what this product changed, and nothing else (used by the uninstaller and for recovery).
 /// Order matters: the network lock is removed first so a failure later never leaves the PC offline.
+/// On an activated PC this needs a removal code from the dashboard first (see RemovalGate).
 /// </summary>
 internal static class Cleanup
 {
+    public const int RemovalCodeRequired = 5;
+
     public static async Task<int> RunAsync(ILoggerFactory loggers, bool networkLockOnly)
     {
         var log = loggers.CreateLogger("Cleanup");
+        if (!RemovalGate.Allowed(MachineState.Load(), DateTimeOffset.UtcNow))
+        {
+            log.LogWarning("Removal refused: a removal code from the FilterPhone dashboard is required");
+            Console.Error.WriteLine("A removal code from FilterPhone is required. Run: FilterPhone.Service.exe --authorize-removal CODE");
+            return RemovalCodeRequired;
+        }
         var failures = 0;
 
         failures += Step(log, "network lock", WfpKillSwitch.Remove);

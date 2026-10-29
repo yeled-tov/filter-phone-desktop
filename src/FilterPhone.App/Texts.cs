@@ -86,6 +86,7 @@ public static class Texts
         "not_applied" or "applied_csp" => "מחיל ובודק את ההגדרה.",
         "not_checked" => string.Empty,
         "not_requested" => "לא הופעל — לפי הבחירה בזמן ההתקנה.",
+        "disabled_by_admin" => "כובה על ידי מנהל FilterPhone.",
         "store_not_installed" => "חנות Microsoft לא מותקנת במחשב הזה.",
         "store_closed_on_open" => "ב-Windows הזה החנות לא נחסמת מראש, אבל אם היא נפתחת היא נסגרת מיד.",
         "store_not_blocked" => "החנות עדיין לא חסומה. מנסה שוב.",

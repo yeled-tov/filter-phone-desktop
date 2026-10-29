@@ -34,6 +34,11 @@ internal static class CliClient
         await using var pipe = new NamedPipeClientStream(".", IpcProtocol.PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
         await pipe.ConnectAsync(5000, cts.Token).ConfigureAwait(false);
+        if (!PipeIdentity.IsOurService(pipe))
+        {
+            Console.Error.WriteLine("The pipe is not served by the installed FilterPhone service.");
+            return 3;
+        }
         var request = new IpcProtocol.Request(Guid.NewGuid().ToString("N"), command, payload);
         await IpcProtocol.WriteFrameAsync(pipe, IpcProtocol.SerializeRequest(request), IpcProtocol.MaxRequestBytes, cts.Token).ConfigureAwait(false);
         var response = IpcProtocol.ParseResponse(await IpcProtocol.ReadFrameAsync(pipe, IpcProtocol.MaxResponseBytes, cts.Token).ConfigureAwait(false));

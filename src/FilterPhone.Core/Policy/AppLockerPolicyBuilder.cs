@@ -144,9 +144,21 @@ public static class AppLockerPolicyBuilder
     /// <summary>The packaged-app rule collection alone (the AppLocker CSP "StoreApps" node takes this fragment).</summary>
     public static string AppxCollectionXml() => CollectionXml(Build(), "Appx");
 
-    private static string CollectionXml(XDocument policy, string type) =>
-        policy.Root!.Elements("RuleCollection").First(e => (string?)e.Attribute("Type") == type)
+    /// <summary>One rule collection of <paramref name="policy"/> as an XML fragment.</summary>
+    public static string CollectionXml(XDocument policy, string type)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        return policy.Root!.Elements("RuleCollection").First(e => (string?)e.Attribute("Type") == type)
             .ToString(SaveOptions.DisableFormatting);
+    }
+
+    /// <summary>True when the collection of <paramref name="type"/> is enforced in <paramref name="policy"/>.</summary>
+    public static bool IsEnforced(XDocument policy, string type)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        return policy.Root!.Elements("RuleCollection")
+            .Any(e => (string?)e.Attribute("Type") == type && (string?)e.Attribute("EnforcementMode") == "Enabled");
+    }
 
     public static bool IsOurs(string? policyXml) =>
         !string.IsNullOrEmpty(policyXml)

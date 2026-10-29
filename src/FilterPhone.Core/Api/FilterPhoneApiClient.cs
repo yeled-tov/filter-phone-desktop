@@ -186,8 +186,21 @@ public sealed partial class FilterPhoneApiClient : IDisposable
         using var doc = await SendAsync(HttpMethod.Post, "/v1/device/heartbeat", token, report.ToJsonBody(), ct)
             .ConfigureAwait(false);
         var r = doc.RootElement;
+        DesktopControls? controls = null;
+        string? removalKey = null;
+        if (r.TryGetProperty("windows", out var w) && w.ValueKind == JsonValueKind.Object)
+        {
+            // A missing or malformed value never weakens protection: it keeps the restriction on.
+            controls = new DesktopControls(Json.Bool(w, "chrome_only") ?? true, Json.Bool(w, "block_store") ?? true);
+            var key = Json.String(w, "removal_key");
+            removalKey = Removal.RemovalCode.IsValidKey(key) ? key : null;
+        }
         return new HeartbeatResult(Json.String(r, "status"), Json.NullableInt(r, "policy_version"),
-            Math.Clamp(Json.Int(r, "interval_s", 900), 300, 86_400), Json.String(r, "message"));
+            Math.Clamp(Json.Int(r, "interval_s", 900), 300, 86_400), Json.String(r, "message"))
+        {
+            Controls = controls,
+            RemovalKey = removalKey,
+        };
     }
 
     // ------------------------------------------------------------------ transport

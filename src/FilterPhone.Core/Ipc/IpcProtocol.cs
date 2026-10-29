@@ -8,7 +8,9 @@ namespace FilterPhone.Core.Ipc;
 /// <summary>
 /// The local protocol between the unprivileged UI and the protection service over a named pipe.
 /// Frames are a 4-byte little-endian length followed by UTF-8 JSON. The command set is fixed and small:
-/// none of the commands can weaken protection, and every argument is validated by the service.
+/// none of the commands can weaken protection, and every argument is validated by the service. The only
+/// command related to removal needs a valid removal code from the dashboard and only authorizes the
+/// uninstaller (which itself needs an administrator).
 /// </summary>
 public static partial class IpcProtocol
 {
@@ -24,9 +26,11 @@ public static partial class IpcProtocol
         public const string Verify = "verify";
         public const string Reconnect = "reconnect";
         public const string Diagnostics = "diagnostics";
+        /// <summary>Checks a removal code issued in the dashboard; on success the uninstall is authorized for a short time.</summary>
+        public const string AuthorizeRemoval = "authorize_removal";
 
         public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
-            { Status, Enroll, Verify, Reconnect, Diagnostics };
+            { Status, Enroll, Verify, Reconnect, Diagnostics, AuthorizeRemoval };
     }
 
     public static class Errors

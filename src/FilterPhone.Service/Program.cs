@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 //   --cleanup              remove everything FilterPhone Desktop changed (uninstall)
 //   --remove-network-lock  remove only the fail-closed network filters (recovery)
 //   --status | --verify | --diagnostics | --enroll   talk to the running service (see Ipc/CliClient.cs)
+//   --removal-status | --authorize-removal CODE      the uninstaller's removal-code check (see Ipc/RemovalCli.cs)
 //   --version
 if (args.Length == 1 && args[0] == "--version")
 {
@@ -28,6 +29,14 @@ if (args.Length == 1 && args[0] is "--cleanup" or "--remove-network-lock")
     using var loggers = LoggerFactory.Create(b => b.AddProvider(serviceLog).AddSimpleConsole());
     return await Cleanup.RunAsync(loggers, networkLockOnly: args[0] == "--remove-network-lock").ConfigureAwait(false);
 }
+if (args.Length == 1 && args[0] == "--removal-status")
+{
+    return RemovalCli.Status();
+}
+if (args.Length == 2 && args[0] == "--authorize-removal")
+{
+    return await RemovalCli.AuthorizeAsync(args[1]).ConfigureAwait(false);
+}
 if (args.Length >= 1 && args[0] is "--status" or "--verify" or "--enroll" or "--diagnostics")
 {
     return await FilterPhone.Service.Ipc.CliClient.RunAsync(args).ConfigureAwait(false);
@@ -35,7 +44,7 @@ if (args.Length >= 1 && args[0] is "--status" or "--verify" or "--enroll" or "--
 if (args.Length > 0 || !WindowsServiceHelpers.IsWindowsService())
 {
     Console.Error.WriteLine("FilterPhone.Service runs as the 'FilterPhoneService' Windows service.");
-    Console.Error.WriteLine("Maintenance: --status | --verify | --diagnostics | --enroll | --cleanup | --remove-network-lock | --version");
+    Console.Error.WriteLine("Maintenance: --status | --verify | --diagnostics | --enroll | --cleanup | --remove-network-lock | --removal-status | --authorize-removal CODE | --version");
     return 2;
 }
 

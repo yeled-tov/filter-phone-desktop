@@ -25,6 +25,7 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
     private readonly RateLimiter _enrollLimit = new(5, TimeSpan.FromMinutes(10));
     private readonly RateLimiter _verifyLimit = new(4, TimeSpan.FromMinutes(1));
     private readonly RateLimiter _reconnectLimit = new(2, TimeSpan.FromMinutes(1));
+    private readonly RateLimiter _removalLimit = new(5, TimeSpan.FromMinutes(10));
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -164,6 +165,22 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
                 IpcProtocol.RejectUnknownArgs(req.Args);
                 return Ok(req, new JsonObject { ["report"] = engine.Diagnostics() });
 
+            case IpcProtocol.Commands.AuthorizeRemoval:
+                {
+                    IpcProtocol.RejectUnknownArgs(req.Args, "code");
+                    var code = IpcProtocol.OptionalString(req.Args, "code", 40, RemovalCodePattern()) ?? string.Empty;
+                    if (!_removalLimit.Allow())
+                    {
+                        return Error(req, IpcProtocol.Errors.RateLimited, null);
+                    }
+                    return await engine.AuthorizeRemovalAsync(code, ct).ConfigureAwait(false) switch
+                    {
+                        RemovalAuthorization.Authorized => Ok(req, new JsonObject { ["authorized"] = true, ["required"] = true }),
+                        RemovalAuthorization.NotRequired => Ok(req, new JsonObject { ["authorized"] = true, ["required"] = false }),
+                        _ => Error(req, IpcProtocol.Errors.InvalidCode, null),
+                    };
+                }
+
             default:
                 return Error(req, IpcProtocol.Errors.UnknownCommand, null);
         }
@@ -177,6 +194,9 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
 
     [GeneratedRegex(@"^\s*[A-Za-z0-9_-]{6,80}\s*$")]
     private static partial Regex CodePattern();
+
+    [GeneratedRegex(@"^[A-Za-z0-9 -]{0,40}$")]
+    private static partial Regex RemovalCodePattern();
 
     private sealed class RateLimiter(int limit, TimeSpan window)
     {

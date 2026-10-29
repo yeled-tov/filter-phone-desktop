@@ -36,9 +36,9 @@ internal sealed class BrowserWatchdog(ILogger<BrowserWatchdog> log) : Background
             {
                 if (SecretStore.Get(SecretStore.Token) is not null)
                 {
-                    // Read the administrator's choices once per scan (they are registry values).
-                    var browsers = Consent.ChromeOnly;
-                    var store = Consent.BlockStore;
+                    // Read the choices (installer consent + dashboard) once per scan; they are registry values.
+                    var browsers = Choices.ChromeOnly;
+                    var store = Choices.BlockStore;
                     if (browsers || store)
                     {
                         ScanAndTerminate(p => Decide(p, browsers, store), log);
@@ -62,7 +62,7 @@ internal sealed class BrowserWatchdog(ILogger<BrowserWatchdog> log) : Background
 
     /// <summary>
     /// The watchdog's decision. It runs only when the PC is enrolled, and only for what the administrator
-    /// consented to in the installer: other browsers (Chrome-only option) and/or the Microsoft Store.
+    /// consented to in the installer and the dashboard has on: other browsers and/or the Microsoft Store.
     /// </summary>
     public static bool Decide(ProcessSnapshot p, bool blockBrowsers, bool blockStore)
     {

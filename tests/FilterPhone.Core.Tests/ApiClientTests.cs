@@ -202,6 +202,56 @@ public class ApiClientTests
     }
 
     [Fact]
+    public async Task Heartbeat_reports_windows_layers_and_reads_the_dashboard_controls()
+    {
+        const string key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+        var handler = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
+            "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"," +
+            "\"windows\": {\"chrome_only\": true, \"block_store\": false, \"removal_key\": \"" + key + "\"}}"));
+        using var client = new FilterPhoneApiClient(Base, handler: handler);
+        var r = await client.HeartbeatAsync("tok", new HeartbeatReport
+        {
+            AppVersion = "1.0.0",
+            DeviceUid = "0123456789abcdef",
+            VpnState = "UP",
+            WantRemovalKey = true,
+            Windows = new WindowsReport("Protected", "Professional", "22631", 1_700_000_000,
+                new Dictionary<string, string> { ["kill_switch"] = "ok", ["store_block"] = "unsupported", ["secret"] = "x" }),
+        }, default);
+        Assert.Equal(new DesktopControls(ChromeOnly: true, BlockStore: false), r.Controls);
+        Assert.Equal(key, r.RemovalKey);
+        Assert.DoesNotContain(key, r.ToString(), StringComparison.Ordinal);
+        using var doc = JsonDocument.Parse(handler.Calls[0].Body!);
+        var win = doc.RootElement.GetProperty("windows");
+        Assert.Equal("ok", win.GetProperty("kill_switch").GetString());
+        Assert.Equal("unsupported", win.GetProperty("store_block").GetString());
+        Assert.Equal("Professional", win.GetProperty("edition").GetString());
+        Assert.False(win.TryGetProperty("secret", out _));            // only known layers are sent
+        Assert.True(doc.RootElement.GetProperty("want_removal_key").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Heartbeat_from_an_older_server_keeps_restrictions_on_and_has_no_key()
+    {
+        var handler = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
+            "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"," +
+            "\"windows\": {\"chrome_only\": \"no\", \"removal_key\": \"short\"}}"));
+        using var client = new FilterPhoneApiClient(Base, handler: handler);
+        var r = await client.HeartbeatAsync("tok", new HeartbeatReport { AppVersion = "1", DeviceUid = "0123456789abcdef", VpnState = "UP" }, default);
+        Assert.Equal(new DesktopControls(true, true), r.Controls);     // malformed values never weaken protection
+        Assert.Null(r.RemovalKey);
+        using var doc = JsonDocument.Parse(handler.Calls[0].Body!);
+        Assert.False(doc.RootElement.TryGetProperty("want_removal_key", out _));
+
+        var old = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
+            "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"}"));
+        using var oldClient = new FilterPhoneApiClient(Base, handler: old);
+        var o = await oldClient.HeartbeatAsync("tok", new HeartbeatReport { AppVersion = "1", DeviceUid = "0123456789abcdef", VpnState = "UP" }, default);
+        Assert.Null(o.Controls);
+        Assert.Null(o.RemovalKey);
+    }
+
+    [Fact]
     public async Task Rekey_validates_the_new_public_key()
     {
         var handler = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK, TestData.VpnJson()));

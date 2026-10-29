@@ -8,6 +8,7 @@ using FilterPhone.Core;
 using FilterPhone.Core.Api;
 using FilterPhone.Core.Diagnostics;
 using FilterPhone.Core.Network;
+using FilterPhone.Core.Removal;
 using FilterPhone.Core.Status;
 using FilterPhone.Core.Trust;
 using FilterPhone.Core.Util;
@@ -23,6 +24,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace FilterPhone.Service.Engine;
+
+/// <summary>Outcome of checking a removal code.</summary>
+internal enum RemovalAuthorization
+{
+    Authorized,
+    NotRequired,
+    WrongCode,
+}
 
 public sealed class EnrollmentException(string code, string? serverMessage = null) : Exception(code)
 {
@@ -530,6 +539,7 @@ internal sealed class ProtectionEngine(
             var hb = await api.HeartbeatAsync(token, BuildHeartbeat(now), ct).ConfigureAwait(false);
             _state.PolicyVersion = hb.PolicyVersion ?? _state.PolicyVersion;
             _state.ServerStatus = hb.Status.Length > 0 ? hb.Status : _state.ServerStatus;
+            ApplyServerControls(hb);
             _state.Save();
             var interval = TimeSpan.FromSeconds(Math.Min(hb.IntervalSeconds, _state.HeartbeatIntervalSeconds));
             // Until everything is verified, check back sooner.
@@ -676,7 +686,9 @@ internal sealed class ProtectionEngine(
         try
         {
             var current = _checks.TryGetValue(Layers.ChromeOnly, out var c) ? c : LayerCheck.Unknown(Layers.ChromeOnly);
-            if (_state.AppLockerMode is null || current.State == CheckState.Failed || ChromeOnlyEnforcer.PolicyOutdated(_state))
+            // (On Windows Home nothing is applied, so "turned off from the dashboard" is final until the choice changes.)
+            var offOnHome = _state.AppLockerMode is null && current is { State: CheckState.Ok, Code: "disabled_by_admin" };
+            if ((_state.AppLockerMode is null && !offOnHome) || current.State == CheckState.Failed || ChromeOnlyEnforcer.PolicyOutdated(_state))
             {
                 var applied = await chromeOnly.ApplyAsync(_state, ct).ConfigureAwait(false);
                 Set(Layers.ChromeOnly, applied.State, applied.Code);
@@ -888,11 +900,74 @@ internal sealed class ProtectionEngine(
     private static List<IPAddress> ParseAddresses(IEnumerable<string> list) =>
         list.Select(s => IPAddress.TryParse(s, out var a) ? a : null).OfType<IPAddress>().ToList();
 
+    /// <summary>The dashboard's choices for this PC and, once, the key that verifies its removal codes.</summary>
+    private void ApplyServerControls(HeartbeatResult hb)
+    {
+        if (hb.Controls is { } controls && Choices.Save(controls))
+        {
+            log.LogInformation("Dashboard settings changed: Chrome only {Chrome}, Store blocked {Store}",
+                controls.ChromeOnly, controls.BlockStore);
+            _nextChromeVerify = DateTimeOffset.MinValue;      // re-apply and re-verify now
+            _policyBackoff.Succeeded();
+            Set(Layers.ChromeOnly, CheckState.Pending, "not_applied");
+        }
+        if (hb.RemovalKey is { } key && !SecretStore.Has(SecretStore.RemovalKey))
+        {
+            SecretStore.Put(SecretStore.RemovalKey, key);
+            log.LogInformation("Removal-code key received; removing FilterPhone now needs a code from the dashboard");
+        }
+    }
+
+    /// <summary>
+    /// Checks a removal code from the dashboard. A valid code authorizes the uninstaller for a short time; it
+    /// changes nothing else (protection keeps running until the uninstaller removes it).
+    /// </summary>
+    internal async Task<RemovalAuthorization> AuthorizeRemovalAsync(string code, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (!RemovalGate.CodeRequired(_state))
+            {
+                return RemovalAuthorization.NotRequired;
+            }
+            if (_state.DeviceId is not int id || !RemovalCode.Verify(SecretStore.Get(SecretStore.RemovalKey), id, code, now))
+            {
+                log.LogWarning("Removal code rejected");
+                return RemovalAuthorization.WrongCode;
+            }
+            _state.RemovalAuthorizedUntil = now + RemovalPolicy.AuthorizationLifetime;
+            _state.Save();
+            log.LogWarning("Removal authorized with a code from the dashboard (valid for {Minutes} minutes)",
+                (int)RemovalPolicy.AuthorizationLifetime.TotalMinutes);
+            return RemovalAuthorization.Authorized;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private static string StateWord(CheckState s) => s switch
+    {
+        CheckState.Ok => "ok",
+        CheckState.Pending => "pending",
+        CheckState.Failed => "failed",
+        CheckState.Unsupported => "unsupported",
+        _ => "unknown",
+    };
+
     private HeartbeatReport BuildHeartbeat(DateTimeOffset now)
     {
         var tunnelOk = _checks.TryGetValue(Layers.Tunnel, out var t) && t.State == CheckState.Ok;
+        var layers = Layers.All.ToDictionary(l => l, l => StateWord(_checks.TryGetValue(l, out var c) ? c.State : CheckState.Unknown),
+            StringComparer.Ordinal);
         return new HeartbeatReport
         {
+            Windows = new WindowsReport(_snapshot.Overall.ToString(), WindowsInfo.EditionId, WindowsInfo.Build,
+                _state.ProtectedSince?.ToUnixTimeSeconds(), layers),
+            WantRemovalKey = !SecretStore.Has(SecretStore.RemovalKey),
             AppVersion = ProductConfig.Version,
             DeviceUid = _state.DeviceUid,
             PolicyVersion = _state.PolicyVersion,
