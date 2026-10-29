@@ -39,6 +39,8 @@ public sealed record LayerCheck(string Layer, CheckState State, string Code, Dat
 public enum OverallState
 {
     NotEnrolled,
+    AwaitingApproval,       // registration sent; waiting for the administrator (usually after payment)
+    RegistrationRejected,
     SetupIncomplete,
     Connecting,
     Reconnecting,
@@ -69,5 +71,24 @@ public sealed record ProtectionSnapshot
     public string WindowsBuild { get; init; } = string.Empty;
     public string SupportWhatsApp { get; init; } = string.Empty;
     public bool SupportEmailConfigured { get; init; }
+    public RegistrationInfo? Registration { get; init; }
     public DateTimeOffset GeneratedAt { get; init; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// A registration waiting for (or refused by) the administrator, as the customer sent it — shown on the
+/// "waiting for approval" screen. Contains no secret.
+/// </summary>
+public sealed record RegistrationInfo
+{
+    public required string Status { get; init; }        // "pending" / "rejected"
+    public string Message { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string Phone { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public int Level { get; init; }
+    public IReadOnlyList<string> Options { get; init; } = [];
+    public string Note { get; init; } = string.Empty;
+    public DateTimeOffset SubmittedAt { get; init; }
+    public DateTimeOffset? LastChecked { get; init; }
 }

@@ -80,6 +80,8 @@ public static class StateText
         OverallState.AdminActionRequired => "נדרשת פעולת מנהל",
         OverallState.DeviceInactive => "המכשיר לא פעיל בשרת",
         OverallState.NotEnrolled => "לא הופעל",
+        OverallState.AwaitingApproval => "ההרשמה ממתינה לאישור",
+        OverallState.RegistrationRejected => "ההרשמה לא אושרה",
         _ => "לא ידוע",
     };
 }

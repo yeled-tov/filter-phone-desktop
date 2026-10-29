@@ -26,6 +26,8 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
     private readonly RateLimiter _verifyLimit = new(4, TimeSpan.FromMinutes(1));
     private readonly RateLimiter _reconnectLimit = new(2, TimeSpan.FromMinutes(1));
     private readonly RateLimiter _removalLimit = new(5, TimeSpan.FromMinutes(10));
+    private readonly RateLimiter _registerLimit = new(3, TimeSpan.FromMinutes(10));
+    private readonly RateLimiter _catalogLimit = new(10, TimeSpan.FromMinutes(1));
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -165,6 +167,57 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
                 IpcProtocol.RejectUnknownArgs(req.Args);
                 return Ok(req, new JsonObject { ["report"] = engine.Diagnostics() });
 
+            case IpcProtocol.Commands.Catalog:
+                IpcProtocol.RejectUnknownArgs(req.Args);
+                if (!_catalogLimit.Allow())
+                {
+                    return Error(req, IpcProtocol.Errors.RateLimited, null);
+                }
+                try
+                {
+                    return Ok(req, JsonSerializer.SerializeToNode(await engine.CatalogAsync(ct).ConfigureAwait(false), JsonOptions));
+                }
+                catch (ApiException e)
+                {
+                    return Error(req, e.IsTransient || e.Kind == ApiErrorKind.Tls ? IpcProtocol.Errors.Network : IpcProtocol.Errors.Server, null);
+                }
+
+            case IpcProtocol.Commands.Register:
+                {
+                    IpcProtocol.RejectUnknownArgs(req.Args, "name", "phone", "email", "level", "options", "note", "deviceName");
+                    var form = new RegistrationForm(
+                        IpcProtocol.OptionalString(req.Args, "name", 80, IpcProtocol.PersonNamePattern())?.Trim() ?? string.Empty,
+                        IpcProtocol.OptionalString(req.Args, "phone", 30, PhonePattern())?.Trim() ?? string.Empty,
+                        IpcProtocol.OptionalString(req.Args, "email", 200, EmailCharsPattern())?.Trim() ?? string.Empty,
+                        IpcProtocol.OptionalInt(req.Args, "level", 1, 3) ?? 0,
+                        IpcProtocol.OptionalStringArray(req.Args, "options", 100, OptionIdPattern()),
+                        IpcProtocol.OptionalString(req.Args, "note", 1500, IpcProtocol.PersonTextPattern())?.Trim() ?? string.Empty,
+                        IpcProtocol.OptionalString(req.Args, "deviceName", 60, IpcProtocol.DeviceNamePattern())?.Trim() ?? string.Empty);
+                    if (form.Problem() is { } problem)
+                    {
+                        return Error(req, IpcProtocol.Errors.BadRequest, problem);
+                    }
+                    if (!_registerLimit.Allow())
+                    {
+                        return Error(req, IpcProtocol.Errors.RateLimited, null);
+                    }
+                    try
+                    {
+                        await engine.RegisterAsync(form, ct).ConfigureAwait(false);
+                        return Ok(req, Snapshot(engine.Snapshot));
+                    }
+                    catch (EnrollmentException e)
+                    {
+                        log.LogWarning("Registration refused: {Code}", e.Code);
+                        return Error(req, e.Code, e.ServerMessage);
+                    }
+                }
+
+            case IpcProtocol.Commands.CancelRegistration:
+                IpcProtocol.RejectUnknownArgs(req.Args);
+                await engine.CancelRegistrationAsync(ct).ConfigureAwait(false);
+                return Ok(req, Snapshot(engine.Snapshot));
+
             case IpcProtocol.Commands.AuthorizeRemoval:
                 {
                     IpcProtocol.RejectUnknownArgs(req.Args, "code");
@@ -197,6 +250,15 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
 
     [GeneratedRegex(@"^[A-Za-z0-9 -]{0,40}$")]
     private static partial Regex RemovalCodePattern();
+
+    [GeneratedRegex(@"^[0-9+\- ]{0,30}$")]
+    private static partial Regex PhonePattern();
+
+    [GeneratedRegex(@"^[^\s<>""']{0,200}$")]
+    private static partial Regex EmailCharsPattern();
+
+    [GeneratedRegex(@"^[a-z0-9_]{1,40}$")]
+    private static partial Regex OptionIdPattern();
 
     private sealed class RateLimiter(int limit, TimeSpan window)
     {

@@ -42,6 +42,7 @@ internal sealed class MachineState
 
     public DateTimeOffset? LastRekeyAttempt { get; set; }
     public DateTimeOffset? RemovalAuthorizedUntil { get; set; }   // set when a valid removal code was entered
+    public PendingRegistration? Registration { get; set; }        // a registration waiting for the administrator
 
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -66,4 +67,20 @@ internal sealed class MachineState
     }
 
     public void Save() => SecureDirectory.WriteAllBytesAtomic(Paths.StateFile, JsonSerializer.SerializeToUtf8Bytes(this, Options));
+}
+
+/// <summary>What the customer sent in the registration form, kept until the administrator decides.</summary>
+internal sealed class PendingRegistration
+{
+    public string Status { get; set; } = "pending";      // "pending" / "rejected"
+    public string Message { get; set; } = string.Empty;
+    public int RequestId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public int Level { get; set; }
+    public List<string> Options { get; set; } = [];
+    public string Note { get; set; } = string.Empty;
+    public DateTimeOffset SubmittedAt { get; set; }
+    public DateTimeOffset? LastChecked { get; set; }
 }

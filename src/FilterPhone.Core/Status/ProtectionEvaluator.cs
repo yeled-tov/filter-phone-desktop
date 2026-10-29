@@ -6,7 +6,11 @@ public sealed record EvaluationContext(
     string? ServerStatus,
     bool TunnelEverUp,
     bool ApiReachable,
-    DateTimeOffset Now);
+    DateTimeOffset Now)
+{
+    /// <summary>"pending" / "rejected" while a registration waits for the administrator; otherwise null.</summary>
+    public string? Registration { get; init; }
+}
 
 /// <summary>
 /// Turns independent layer checks into one honest overall state. "Protected" is returned only when every
@@ -44,7 +48,12 @@ public static class ProtectionEvaluator
 
         if (!ctx.Enrolled)
         {
-            return OverallState.NotEnrolled;
+            return ctx.Registration switch
+            {
+                "pending" => OverallState.AwaitingApproval,
+                "rejected" => OverallState.RegistrationRejected,
+                _ => OverallState.NotEnrolled,
+            };
         }
         if (ctx.ServerStatus is { Length: > 0 } s && s != "active")
         {

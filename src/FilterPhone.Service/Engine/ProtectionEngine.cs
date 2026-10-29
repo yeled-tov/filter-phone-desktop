@@ -76,6 +76,8 @@ internal sealed class ProtectionEngine(
     private DateTimeOffset _nextVerify = DateTimeOffset.MinValue;
     private DateTimeOffset _nextVpnRefresh = DateTimeOffset.MinValue;
     private DateTimeOffset _nextChromeVerify = DateTimeOffset.MinValue;
+    private DateTimeOffset _nextRegistrationCheck = DateTimeOffset.MinValue;
+    private (Catalog Catalog, DateTimeOffset At)? _catalog;
     private DateTimeOffset? _staleSince;
     private DateTimeOffset? _noHandshakeSince;
     private DateTimeOffset? _lastHandshake;
@@ -157,6 +159,7 @@ internal sealed class ProtectionEngine(
     {
         if (!_state.Enrolled)
         {
+            await RegistrationTickAsync(ct).ConfigureAwait(false);
             return;
         }
         var now = DateTimeOffset.UtcNow;
@@ -741,6 +744,11 @@ internal sealed class ProtectionEngine(
             }
             using var keys = WireGuardKeys.Generate();
             using var api = CreateApi();
+            if (_state.Registration is not null)
+            {
+                // An activation code replaces a registration that was still waiting.
+                await WithdrawRegistrationAsync(api, ct).ConfigureAwait(false);
+            }
             EnrollmentResult result;
             try
             {
@@ -793,6 +801,232 @@ internal sealed class ProtectionEngine(
             _gate.Release();
             Wake();
         }
+    }
+
+    // ------------------------------------------------------------------ registration (from the UI)
+
+    /// <summary>The registration form's levels and options, from the server (cached for 10 minutes).</summary>
+    public async Task<Catalog> CatalogAsync(CancellationToken ct)
+    {
+        if (_catalog is { } c && DateTimeOffset.UtcNow - c.At < TimeSpan.FromMinutes(10))
+        {
+            return c.Catalog;
+        }
+        using var api = CreateApi();
+        var fresh = await api.GetCatalogAsync(ct).ConfigureAwait(false);
+        _catalog = (fresh, DateTimeOffset.UtcNow);
+        return fresh;
+    }
+
+    /// <summary>
+    /// Sends a registration request, like the phone app's "הצטרפות לשירות". The PC keeps a device token and its
+    /// WireGuard key, but nothing is filtered or blocked until the administrator approves the request in the
+    /// dashboard; then the service activates protection by itself (<see cref="RegistrationTickAsync"/>).
+    /// </summary>
+    public async Task RegisterAsync(RegistrationForm form, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (_state.Enrolled && _state.ServerStatus != "unauthorized")
+            {
+                throw new EnrollmentException("already_enrolled");
+            }
+            if (_state.Registration is { Status: "pending" })
+            {
+                throw new EnrollmentException(Core.Ipc.IpcProtocol.Errors.AlreadyRegistered);
+            }
+            if (!TunnelController.WireGuardInstalled)
+            {
+                throw new EnrollmentException("wireguard_missing");
+            }
+            using var api = CreateApi();
+            if (_state.Registration is not null)
+            {
+                await WithdrawRegistrationAsync(api, ct).ConfigureAwait(false);   // a refused request is replaced
+            }
+            using var keys = WireGuardKeys.Generate();
+            var deviceName = form.DeviceName.Trim().Length > 0 ? form.DeviceName.Trim() : "מחשב Windows";
+            RegistrationResult result;
+            try
+            {
+                result = await api.RegisterAsync(form with { DeviceName = deviceName }, keys.PublicKey, _state.DeviceUid, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ApiException e)
+            {
+                throw new EnrollmentException(e.Kind switch
+                {
+                    ApiErrorKind.Forbidden => Core.Ipc.IpcProtocol.Errors.RegistrationClosed,
+                    ApiErrorKind.RateLimited => "rate_limited",
+                    ApiErrorKind.Conflict => "conflict",
+                    ApiErrorKind.BadRequest => "bad_request",
+                    ApiErrorKind.Network or ApiErrorKind.Timeout or ApiErrorKind.Tls => "network",
+                    _ => "server",
+                }, e.ServerMessage);
+            }
+            SecretStore.Put(SecretStore.PrivateKey, keys.PrivateKeyBase64());
+            SecretStore.Put(SecretStore.Token, result.Token);
+            _state.Enrolled = false;
+            _state.DeviceId = result.DeviceId;
+            _state.DeviceName = deviceName;
+            _state.ServerStatus = result.Status;
+            _state.ServerMessage = null;
+            _state.Registration = new PendingRegistration
+            {
+                Status = "pending",
+                Message = result.Message,
+                RequestId = result.RequestId,
+                Name = form.Name.Trim(),
+                Phone = form.Phone.Trim(),
+                Email = form.Email.Trim(),
+                Level = form.Level,
+                Options = [.. form.Options],
+                Note = form.Note.Trim(),
+                SubmittedAt = DateTimeOffset.UtcNow,
+            };
+            _state.Save();
+            _nextRegistrationCheck = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(20);
+            log.LogInformation("Registration request {Request} sent (device {Id}); waiting for the administrator",
+                result.RequestId, result.DeviceId);
+        }
+        finally
+        {
+            _gate.Release();
+            Publish();
+            Wake();
+        }
+    }
+
+    /// <summary>Withdraws a registration that was not approved yet (also a refused one).</summary>
+    public async Task CancelRegistrationAsync(CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (_state.Enrolled || _state.Registration is null)
+            {
+                return;
+            }
+            using var api = CreateApi();
+            await WithdrawRegistrationAsync(api, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+            Publish();
+            Wake();
+        }
+    }
+
+    /// <summary>Caller holds the gate. Best effort on the server; always forgets the request locally.</summary>
+    private async Task WithdrawRegistrationAsync(FilterPhoneApiClient api, CancellationToken ct)
+    {
+        if (SecretStore.Get(SecretStore.Token) is { } token && !_state.Enrolled)
+        {
+            try
+            {
+                await api.CancelRegistrationAsync(token, ct).ConfigureAwait(false);
+            }
+            catch (ApiException e)
+            {
+                log.LogInformation("Registration cancel on the server: {Kind}", e.Kind);
+            }
+        }
+        SecretStore.Delete(SecretStore.Token);
+        SecretStore.Delete(SecretStore.PrivateKey);
+        _state.Registration = null;
+        _state.DeviceId = null;
+        _state.ServerStatus = null;
+        _state.ServerMessage = null;
+        _state.Save();
+        log.LogInformation("Registration withdrawn");
+    }
+
+    /// <summary>
+    /// While a registration waits: asks the server every ~30 seconds. When the administrator approved it, fetches
+    /// the VPN settings and the filtering CA (validated like an activation-code enrolment) and switches to normal
+    /// protection; from then on everything is as if the PC had been activated with a code.
+    /// </summary>
+    private async Task RegistrationTickAsync(CancellationToken ct)
+    {
+        var reg = _state.Registration;
+        var now = DateTimeOffset.UtcNow;
+        if (reg is not { Status: "pending" } || now < _nextRegistrationCheck)
+        {
+            return;
+        }
+        var token = SecretStore.Get(SecretStore.Token);
+        if (token is null)
+        {
+            _state.Registration = null;
+            _state.Save();
+            return;
+        }
+        _nextRegistrationCheck = now + TimeSpan.FromSeconds(30);
+        using var api = CreateApi();
+        try
+        {
+            var device = await api.GetDeviceAsync(token, ct).ConfigureAwait(false);
+            _apiReachable = true;
+            reg.LastChecked = now;
+            reg.Message = device.Message;
+            _state.ServerStatus = device.Status;
+            switch (device.Status)
+            {
+                case "active":
+                    await CompleteApprovalAsync(api, token, device, ct).ConfigureAwait(false);
+                    break;
+                case "rejected":
+                    reg.Status = "rejected";
+                    log.LogInformation("Registration was not approved");
+                    break;
+            }
+        }
+        catch (ApiException e) when (e.Kind == ApiErrorKind.Unauthorized)
+        {
+            reg.Status = "rejected";
+            reg.Message = "הבקשה כבר לא קיימת בשרת. אפשר לשלוח בקשה חדשה.";
+        }
+        catch (ApiException e)
+        {
+            _apiReachable = !e.IsTransient;
+            _nextRegistrationCheck = now + TimeSpan.FromMinutes(1);
+            log.LogInformation("Registration check failed ({Kind}); retrying", e.Kind);
+        }
+        catch (CaValidationException e)
+        {
+            log.LogError("Approved, but the filtering CA was rejected: {Reason}", e.Message);
+            reg.Message = "החיבור אושר, אבל תעודת הסינון שהתקבלה לא עברה בדיקה. פנו לתמיכה.";
+            _nextRegistrationCheck = now + TimeSpan.FromMinutes(5);
+        }
+        _state.Save();
+    }
+
+    private async Task CompleteApprovalAsync(FilterPhoneApiClient api, string token, DeviceInfo device, CancellationToken ct)
+    {
+        var bundle = await api.GetVpnAsync(token, ct).ConfigureAwait(false);
+        var caInfo = bundle.Ca ?? throw new CaValidationException("the server sent no filtering CA");
+        var ca = CaCertificateValidator.Validate(caInfo, ProductConfig.Current.ExpectedCaSha256, DateTimeOffset.UtcNow);
+        SecretStore.Put(SecretStore.VpnJson, bundle.VpnJson);
+        SecretStore.Put(SecretStore.CaPem, caInfo.Pem);
+        _state.Enrolled = true;
+        _state.Registration = null;
+        _state.DeviceId = device.DeviceId;
+        _state.DeviceName = device.Name.Length > 0 ? device.Name : _state.DeviceName;
+        _state.LevelName = device.LevelName;
+        _state.ServerStatus = device.Status;
+        _state.ServerMessage = null;
+        _state.TunnelAddress = bundle.Vpn.TunnelIPv4.ToString();
+        _state.CurrentCaSha256 = ca.Sha256;
+        _state.VpnFingerprint = null;
+        await RefreshAddressCacheAsync(bundle.Vpn, ct).ConfigureAwait(false);
+        _state.Save();
+        _nextServerSync = _nextVerify = _nextDataProbe = DateTimeOffset.MinValue;
+        _nextVpnRefresh = DateTimeOffset.UtcNow + VpnRefreshEvery;
+        log.LogInformation("Registration approved: device {Id} activated", device.DeviceId);
+        Wake();
     }
 
     public async Task<ProtectionSnapshot> VerifyNowAsync(CancellationToken ct)
@@ -993,7 +1227,11 @@ internal sealed class ProtectionEngine(
         var checks = Layers.All.ToDictionary(l => l, l => _checks.TryGetValue(l, out var c) ? c : LayerCheck.Unknown(l));
         var ctx = new EvaluationContext(_state.Enrolled,
             _state.ServerStatus == "unauthorized" ? "unauthorized" : _state.ServerStatus,
-            _state.TunnelEverVerified || _tunnelUpThisRun, _apiReachable, DateTimeOffset.UtcNow);
+            _state.TunnelEverVerified || _tunnelUpThisRun, _apiReachable, DateTimeOffset.UtcNow)
+        {
+            Registration = _state.Enrolled ? null : _state.Registration?.Status,
+        };
+        var reg = _state.Enrolled ? null : _state.Registration;
         _snapshot = new ProtectionSnapshot
         {
             Overall = ProtectionEvaluator.Evaluate(checks, ctx),
@@ -1011,6 +1249,19 @@ internal sealed class ProtectionEngine(
             WindowsBuild = WindowsInfo.Build,
             SupportWhatsApp = _state.SupportWhatsApp.Length > 0 ? _state.SupportWhatsApp : ProductConfig.Current.SupportWhatsApp,
             SupportEmailConfigured = ProductConfig.Current.SupportEmail.Length > 0,
+            Registration = reg is null ? null : new RegistrationInfo
+            {
+                Status = reg.Status,
+                Message = reg.Message,
+                Name = reg.Name,
+                Phone = reg.Phone,
+                Email = reg.Email,
+                Level = reg.Level,
+                Options = [.. reg.Options],
+                Note = reg.Note,
+                SubmittedAt = reg.SubmittedAt,
+                LastChecked = reg.LastChecked,
+            },
         };
     }
 }

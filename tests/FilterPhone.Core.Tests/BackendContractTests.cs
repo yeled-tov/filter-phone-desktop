@@ -197,6 +197,47 @@ public sealed class BackendContractTests : IDisposable
     }
 
     [Fact]
+    public async Task A_pc_registers_waits_and_after_approval_gets_its_vpn_and_ca()
+    {
+        var catalog = await _client.GetCatalogAsync(default);
+        Assert.Equal([1, 2, 3], catalog.Levels.Select(l => l.Level));
+        var option = catalog.ForPc.First(o => o.Popular);
+
+        using var keys = WireGuardKeys.Generate();
+        var reg = await _client.RegisterAsync(new RegistrationForm("בדיקת הרשמה", "050-7654321", "", 2, [option.Id], "", "מחשב בדיקה"),
+            keys.PublicKey, Uid(), default);
+        Assert.Equal("pending", reg.Status);
+        Assert.Equal("pending", (await _client.GetDeviceAsync(reg.Token, default)).Status);
+        await Assert.ThrowsAsync<ApiException>(() => _client.GetVpnAsync(reg.Token, default));   // nothing before approval
+
+        using var admin = await AdminAsync();
+        var requests = await admin.GetFromJsonAsync<JsonElement>("/v1/admin/requests");
+        var request = requests.EnumerateArray().Single(r => r.GetProperty("device_id").GetInt32() == reg.DeviceId);
+        Assert.Equal("windows", request.GetProperty("platform").GetString());
+        var approve = await admin.PostAsJsonAsync($"/v1/admin/requests/{request.GetProperty("id").GetInt32()}/approve",
+            new { level = 2, options = new[] { option.Id }, payment = "paid" });
+        approve.EnsureSuccessStatusCode();
+
+        var device = await _client.GetDeviceAsync(reg.Token, default);
+        Assert.True(device.IsActive);
+        var bundle = await _client.GetVpnAsync(reg.Token, default);
+        Assert.NotNull(bundle.Ca);
+        CaCertificateValidator.Validate(bundle.Ca!, "", DateTimeOffset.UtcNow);
+        Assert.StartsWith("10.8.0.", bundle.Vpn.TunnelIPv4.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_pending_registration_can_be_withdrawn()
+    {
+        using var keys = WireGuardKeys.Generate();
+        var reg = await _client.RegisterAsync(new RegistrationForm("ביטול בקשה", "050-7654322", "", 1, [], "", ""),
+            keys.PublicKey, Uid(), default);
+        await _client.CancelRegistrationAsync(reg.Token, default);
+        var e = await Assert.ThrowsAsync<ApiException>(() => _client.GetDeviceAsync(reg.Token, default));
+        Assert.Equal(ApiErrorKind.Unauthorized, e.Kind);
+    }
+
+    [Fact]
     public async Task Server_outage_is_a_transient_network_error()
     {
         using var dead = new FilterPhoneApiClient(new Uri("http://127.0.0.1:9"));

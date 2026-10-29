@@ -134,6 +134,62 @@ public sealed partial class FilterPhoneApiClient : IDisposable
             Json.Int(root, "level"), Json.String(root, "level_name"), vpn, vpnJson, ca);
     }
 
+    /// <summary><c>GET /v1/catalog</c>: filtering levels and blocking options for the registration form.</summary>
+    public async Task<Catalog> GetCatalogAsync(CancellationToken ct)
+    {
+        using var doc = await SendAsync(HttpMethod.Get, "/v1/catalog", null, null, ct).ConfigureAwait(false);
+        return Catalog.Parse(doc.RootElement);
+    }
+
+    /// <summary>
+    /// <c>POST /v1/register</c>: a registration request (like the phone app's). The PC gets a device token but
+    /// no VPN until the administrator approves the request in the dashboard (usually after payment).
+    /// </summary>
+    public async Task<RegistrationResult> RegisterAsync(RegistrationForm form, string publicKey, string deviceUid, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        if (form.Problem() is { } problem)
+        {
+            throw new ArgumentException(problem, nameof(form));
+        }
+        if (!WireGuardKeys.IsValidKey(publicKey))
+        {
+            throw new ArgumentException("Public key is invalid.", nameof(publicKey));
+        }
+        var body = new Dictionary<string, object?>
+        {
+            ["name"] = Clip(form.Name, 80),
+            ["phone"] = Clip(form.Phone, 30),
+            ["email"] = Clip(form.Email, 200),
+            ["level"] = form.Level,
+            ["options"] = form.Options.Distinct(StringComparer.Ordinal).Take(100).ToArray(),
+            ["note"] = Clip(form.Note, 1500),
+            ["public_key"] = publicKey,
+            ["device_name"] = Clip(form.DeviceName, 60),
+            ["platform"] = ProductConfig.Platform,
+            ["app_version"] = Clip(ProductConfig.Version, 20),
+        };
+        if (deviceUid.Length > 0)
+        {
+            body["device_uid"] = deviceUid;
+        }
+        using var doc = await SendAsync(HttpMethod.Post, "/v1/register", null, body, ct).ConfigureAwait(false);
+        var root = doc.RootElement;
+        var token = Json.String(root, "token");
+        if (token.Length is < 20 or > 200 || Json.Int(root, "device_id") <= 0)
+        {
+            throw new ApiException(ApiErrorKind.InvalidResponse, 201, null);
+        }
+        return new RegistrationResult(Json.Int(root, "device_id"), token, Json.String(root, "status", "pending"),
+            Json.Int(root, "request_id"), Json.String(root, "message"));
+    }
+
+    /// <summary><c>DELETE /v1/device</c>: cancels a registration that was not approved yet.</summary>
+    public async Task CancelRegistrationAsync(string token, CancellationToken ct)
+    {
+        using var _ = await SendAsync(HttpMethod.Delete, "/v1/device", token, null, ct).ConfigureAwait(false);
+    }
+
     /// <summary>Activation codes: "XXXXX-XXXXX" (6-32 chars per the API); transfer codes: "FPT-" + token.</summary>
     public static bool IsPlausibleCode(string code) =>
         code.Length is >= 6 and <= 80 && CodePattern().IsMatch(code)

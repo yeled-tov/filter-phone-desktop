@@ -28,9 +28,15 @@ public static partial class IpcProtocol
         public const string Diagnostics = "diagnostics";
         /// <summary>Checks a removal code issued in the dashboard; on success the uninstall is authorized for a short time.</summary>
         public const string AuthorizeRemoval = "authorize_removal";
+        /// <summary>The registration form's levels and options (from the server, cached by the service).</summary>
+        public const string Catalog = "catalog";
+        /// <summary>Sends a registration request; the PC is activated only after the administrator approves it.</summary>
+        public const string Register = "register";
+        /// <summary>Withdraws a registration that was not approved yet.</summary>
+        public const string CancelRegistration = "cancel_registration";
 
         public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
-            { Status, Enroll, Verify, Reconnect, Diagnostics, AuthorizeRemoval };
+            { Status, Enroll, Verify, Reconnect, Diagnostics, AuthorizeRemoval, Catalog, Register, CancelRegistration };
     }
 
     public static class Errors
@@ -44,6 +50,8 @@ public static partial class IpcProtocol
         public const string Server = "server";
         public const string Internal = "internal";
         public const string Busy = "busy";
+        public const string AlreadyRegistered = "already_registered";
+        public const string RegistrationClosed = "registration_closed";
     }
 
     public sealed record Request(string Id, string Command, JsonObject Args);
@@ -185,6 +193,48 @@ public static partial class IpcProtocol
         return value;
     }
 
+    /// <summary>Reads an optional integer argument within [min, max].</summary>
+    public static int? OptionalInt(JsonObject args, string name, int min, int max)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        var node = args[name];
+        if (node is null)
+        {
+            return null;
+        }
+        if (node.GetValueKind() != JsonValueKind.Number || !node.AsValue().TryGetValue<int>(out var v) || v < min || v > max)
+        {
+            throw new InvalidDataException($"Argument '{name}' is invalid.");
+        }
+        return v;
+    }
+
+    /// <summary>Reads an optional array of strings, each matching <paramref name="allowed"/>.</summary>
+    public static IReadOnlyList<string> OptionalStringArray(JsonObject args, string name, int maxItems, Regex allowed)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(allowed);
+        var node = args[name];
+        if (node is null)
+        {
+            return [];
+        }
+        if (node is not JsonArray array || array.Count > maxItems)
+        {
+            throw new InvalidDataException($"Argument '{name}' must be a short array.");
+        }
+        var list = new List<string>(array.Count);
+        foreach (var item in array)
+        {
+            if (item?.GetValueKind() != JsonValueKind.String || !allowed.IsMatch(item.GetValue<string>()))
+            {
+                throw new InvalidDataException($"Argument '{name}' has an invalid item.");
+            }
+            list.Add(item.GetValue<string>());
+        }
+        return list;
+    }
+
     public static void RejectUnknownArgs(JsonObject args, params string[] allowed)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -199,6 +249,14 @@ public static partial class IpcProtocol
 
     [GeneratedRegex("^[A-Za-z0-9-]{1,64}$")]
     private static partial Regex RequestId();
+
+    /// <summary>Free text from a person (name, note): no control or bidi-override characters except line breaks.</summary>
+    [GeneratedRegex(@"^[^\x00-\x09\x0B\x0C\x0E-\x1F\x7F\u200B-\u200F\u202A-\u202E\u2066-\u2069]*$")]
+    public static partial Regex PersonTextPattern();
+
+    /// <summary>A person's name: printable text without control or bidi-override characters, up to 80.</summary>
+    [GeneratedRegex(@"^[^\p{Cc}\u200B-\u200F\u202A-\u202E\u2066-\u2069]{0,80}$")]
+    public static partial Regex PersonNamePattern();
 
     /// <summary>Device display name: printable text without control or bidi-override characters.</summary>
     [GeneratedRegex(@"^[^\p{Cc}​-‏‪-‮⁦-⁩]{0,60}$")]

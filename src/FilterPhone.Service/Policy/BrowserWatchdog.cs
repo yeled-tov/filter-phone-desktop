@@ -34,7 +34,7 @@ internal sealed class BrowserWatchdog(ILogger<BrowserWatchdog> log) : Background
         {
             try
             {
-                if (SecretStore.Get(SecretStore.Token) is not null)
+                if (SecretStore.Has(SecretStore.VpnJson))           // activated (not just registered)
                 {
                     // Read the choices (installer consent + dashboard) once per scan; they are registry values.
                     var browsers = Choices.ChromeOnly;
