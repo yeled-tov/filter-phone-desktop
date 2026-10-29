@@ -118,6 +118,7 @@ public sealed class ScreenshotTests
             {
                 var app = new App();
                 app.InitializeComponent();
+                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;    // closing a preview window must not end the app
             }
             var catalog = SampleCatalog();
 
