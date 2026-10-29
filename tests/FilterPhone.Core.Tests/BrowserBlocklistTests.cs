@@ -59,4 +59,15 @@ public class BrowserBlocklistTests
         Assert.False(BrowserBlocklist.IsBlockedBrowser(null, "Steam", "launcher.exe"));
         Assert.False(BrowserBlocklist.IsBlockedBrowser(null, "Some Game Studio", "browser.exe"));
     }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsStore_22410.1401.5.0_x64__8wekyb3d8bbwe\WinStore.App.exe", true)]
+    [InlineData(@"c:\program files\windowsapps\microsoft.windowsstore_12107.1001.15.0_x64__8wekyb3d8bbwe\winstore.app.exe", true)]
+    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsCalculator_11.2405.2.0_x64__8wekyb3d8bbwe\CalculatorApp.exe", false)]
+    [InlineData(@"C:\Users\u\Downloads\WinStore.App.exe", false)]
+    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsStore_22410.1401.5.0_x64__8wekyb3d8bbwe\StoreDesktopExtension.exe", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void Only_the_microsoft_store_app_is_recognised_as_the_store(string? path, bool expected) =>
+        Assert.Equal(expected, BrowserBlocklist.IsMicrosoftStore(path));
 }

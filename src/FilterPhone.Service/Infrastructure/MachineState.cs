@@ -36,6 +36,7 @@ internal sealed class MachineState
     public string? CurrentCaSha256 { get; set; }
 
     public string? AppLockerMode { get; set; }          // "local" / "csp" when our policy is applied
+    public string? AppLockerPolicySha256 { get; set; }  // which policy was applied (re-applied when the choice changes)
     public int? AppIdSvcOriginalStart { get; set; }
     public Dictionary<string, string?> PolicyBackup { get; set; } = [];
 

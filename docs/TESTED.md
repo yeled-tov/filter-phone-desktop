@@ -1,27 +1,26 @@
 # מה נבדק ואיפה
 
-## מצב ה-CI במאגר הזה (חשוב)
+## מצב ה-CI
 
-כל ריצת GitHub Actions על runner של Windows במאגר הפרטי הזה **נכשלת תוך ~4 שניות
-בלי שהוקצה runner ובלי לוגים** — כולל הריצות של אב-הטיפוס המקורי מ-26.10.2026
-(`build-windows.yml`), עוד לפני השינויים כאן. זהו חסם ברמת החשבון על runners
-מתארחים ל-Windows (מכסת דקות / הגדרת תקרת הוצאה ל-Actions במאגר פרטי), ולא תקלה
-בקוד או ב-workflow. בעל המאגר פותר זאת ב-GitHub → Settings → Billing → Actions
-(תקרת הוצאה / אמצעי תשלום) או בהרצה על runner עצמי (self-hosted) של Windows.
-עד אז ה-workflow לא יריץ ולא יפיק את ה-EXE, אף שהוא תקין (ה-YAML אומת).
+ה-workflow רץ על runner של Windows ב-GitHub Actions ועובר במלואו (בנייה עם אזהרות
+כשגיאות, כל הבדיקות, בדיקות החוזה מול קוד השרת, בדיקות Windows מורשות, אימות ה-MSI של
+WireGuard, SBOM ובניית תוכנת ההתקנה). בעבר הריצות נכשלו תוך ~4 שניות בלי runner כשהמאגר
+היה פרטי בלי מכסת Actions ל-Windows; זה נפתר כשהמאגר הפך לציבורי. אם המאגר יחזור
+להיות פרטי — צריך מכסת דקות ל-Windows runners (Settings → Billing) או runner עצמי.
 
-## בדיקות אוטומטיות (ירוצו כש-runner של Windows יהיה זמין)
+## בדיקות אוטומטיות
 
 | חבילה | מה | איפה רץ |
 |---|---|---|
-| FilterPhone.Core.Tests (111) | מפתחות (וקטורי RFC 7748), אימות הגדרות VPN, רינדור wg-quick, לקוח API, אימות CA, redaction, מצב הגנה, אימות, IPC, מדיניות AppLocker/kill-switch, הודעות תמיכה | כל מערכת הפעלה |
+| FilterPhone.Core.Tests (142) | מפתחות (וקטורי RFC 7748), אימות הגדרות VPN, רינדור wg-quick, לקוח API, אימות CA, redaction, מצב הגנה, אימות, IPC, מדיניות AppLocker/kill-switch, הודעות תמיכה | כל מערכת הפעלה |
 | BackendContractTests (7) | מול **קוד השרת האמיתי** (קומיט נעוץ): הפעלה תקינה/שגויה, ייחודיות מפתח וכתובת, איסור שימוש חוזר, טוקן לא תקין, VPN חסר, heartbeat+rekey, `platform=windows`, שרת נפל = שגיאה חולפת | Windows (ולינוקס מקומי) |
 | WfpKillSwitchIntegrationTests | מסנני WFP קבועים אמיתיים (חסימה, היתר בעל משקל, app-id, IPv6, הסרה מדויקת) על טווחי TEST-NET | Windows מורשה |
 | DpapiTests | הצפנה/פענוח DPAPI + פורמט ה-description של WireGuard | Windows |
 | PipeSecurityTests | ACL של ה-pipe (אינטראקטיבי מותר, רשת נדחית) | Windows |
 | TrustStoreTests | הוספה/הסרה של תעודת הסינון ב-LocalMachine\Root בלבד | Windows מורשה |
 | SignatureTests | אימות Authenticode ובדיקת מפרסם | Windows |
-| AppLockerEvaluationTests | הערכת המדיניות עם `Test-AppLockerPolicy` למשתמש רגיל ולמנהל, כולל העתקים ניידים | Windows מורשה + Chrome |
+| AppLockerEvaluationTests | הערכת המדיניות עם `Test-AppLockerPolicy` למשתמש רגיל ולמנהל, כולל העתקים ניידים; כלל האפליקציות הארוזות (חסימת החנות) נבדק מול חבילת Windows אמיתית — החבילה שצוינה נחסמת והשאר מורשות | Windows מורשה + Chrome |
+| BrowserWatchdogTests | סגירה אמיתית של תהליך שסומן כחסום, אי-נגיעה בתהליכים מותרים ובתיקיית Windows, והחלטה לפי בחירות המנהל (דפדפנים / חנות) | Windows |
 
 ## מה הבדיקות מכסות
 
@@ -31,11 +30,15 @@
   שמונעים תעבורה ישירה כשה-kill switch פעיל.
 - הגבלת Chrome: Chrome מורשה, Edge ונייד נחסמים, רכיבי Windows נשארים — בהערכת
   Windows עצמו.
+- חסימת חנות Microsoft: הכלל חוסם בדיוק את החבילה שצוינה ומשאיר את שאר האפליקציות
+  הארוזות של Windows מורשות (מנוע Windows עצמו). על ה-runner אין חנות, ולכן חסימת
+  החנות עצמה בפועל נבדקת ידנית על Windows 10/11 אמיתי (ראו למטה).
 
 ## מה חובה לבדוק ידנית לפני ייצור
 
 לא ניתן לבצע אוטומטית בלי מכשירים פיזיים ייעודיים:
 - התקנה נקייה על Windows 10 ו-11 אמיתיים (Home, Pro, Enterprise).
+- חנות Microsoft: ב-Pro/Enterprise לא נפתחת; ב-Home נסגרת מיד כשנפתחת.
 - התאוששות אחרי אתחול, שינוי Wi-Fi, שינה/יציאה, ניתוק רשת, קריסת שירות.
 - סינון תמונות קצה-לקצה באתרי HTTPS אמיתיים ובפורמטים שונים דרך Chrome.
 - התקנה עם WireGuard קיים, שדרוג מגרסה קודמת, התקנה שנקטעה, הסרה ושחזור.

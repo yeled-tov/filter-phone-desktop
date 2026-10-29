@@ -121,7 +121,7 @@ begin
 
   ConsentPage := CreateInputOptionPage(wpLicense,
     'הרשאות ואבטחה', 'FilterPhone מבקש את האישורים הבאים כדי להגן על המחשב',
-    'סמנו את האישורים. בלי שלושתם ההגנה לא תהיה מלאה. אפשר לבטל כל אחד מהם בהסרת התוכנה.',
+    'סמנו את האישורים. בלי שלושת הראשונים ההגנה לא תהיה מלאה. כל אחד מהם מתבטל בהסרת התוכנה.',
     False, False);
   ConsentPage.Add(
     'התקנת תעודת הסינון של FilterPhone במאגר התעודות של המחשב. התעודה מאפשרת לסנן תמונות באתרים ' +
@@ -131,10 +131,14 @@ begin
     'סינון. נשמר נתיב התאוששות, והחסימה מוסרת בהסרת התוכנה.');
   ConsentPage.Add(
     'הגבלת הדפדפנים ל-Google Chrome בלבד (AppLocker). Microsoft Edge ודפדפנים אחרים ייחסמו למשתמש הרגיל. ' +
-    'רכיבי Windows, Chrome ועדכוניו ימשיכו לפעול. במהדורות Windows מסוימות לא ניתן לאכוף זאת.');
+    'רכיבי Windows, Chrome ועדכוניו ימשיכו לפעול. ב-Windows Home דפדפן אחר שנפתח נסגר מיד.');
+  ConsentPage.Add(
+    'חסימת חנות Microsoft (Microsoft Store), כדי שלא יותקנו ממנה דפדפנים, משחקים ואפליקציות. ' +
+    'החנות נחסמת מראש ב-Windows Pro ומעלה, ובכל מהדורה היא נסגרת מיד אם נפתחת.');
   ConsentPage.Values[0] := True;
   ConsentPage.Values[1] := True;
   ConsentPage.Values[2] := True;
+  ConsentPage.Values[3] := True;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -162,7 +166,10 @@ procedure WriteConsent();
 begin
   RegWriteDWordValue(HKLM, 'SOFTWARE\FilterPhone Desktop\Consent', 'CertificateTrust', Integer(ConsentPage.Values[0]));
   RegWriteDWordValue(HKLM, 'SOFTWARE\FilterPhone Desktop\Consent', 'NetworkLock', Integer(ConsentPage.Values[1]));
-  RegWriteDWordValue(HKLM, 'SOFTWARE\FilterPhone Desktop\Consent', 'ChromeOnly', Integer(ConsentPage.Values[2] and EditionOk));
+  // Recorded on every edition: on Windows Home the service cannot block browsers in advance (no AppLocker),
+  // so it closes them the moment they open and reports that as a limitation.
+  RegWriteDWordValue(HKLM, 'SOFTWARE\FilterPhone Desktop\Consent', 'ChromeOnly', Integer(ConsentPage.Values[2]));
+  RegWriteDWordValue(HKLM, 'SOFTWARE\FilterPhone Desktop\Consent', 'BlockStore', Integer(ConsentPage.Values[3]));
   RegWriteStringValue(HKLM, 'SOFTWARE\FilterPhone Desktop', 'Version', '{#AppVersion}');
   RegWriteStringValue(HKLM, 'SOFTWARE\FilterPhone Desktop', 'InstallDir', ExpandConstant('{app}'));
 end;
@@ -173,8 +180,9 @@ begin
   begin
     WriteConsent();
     if not EditionOk then
-      MsgBox('זוהתה מהדורת Windows Home. הסינון ברשת (VPN, חסימת גלישה, סינון תמונות) יפעל במלואו, אבל ' +
-             'לא ניתן לחסום דפדפנים אחרים מלבד Chrome במהדורה זו. התוכנה תציג זאת כמגבלה.',
+      MsgBox('זוהתה מהדורת Windows Home. הסינון ברשת (VPN, חסימת גלישה, סינון תמונות) יפעל במלואו. ' +
+             'במהדורה זו דפדפנים אחרים וחנות Microsoft לא נחסמים מראש, אלא נסגרים מיד כשהם נפתחים. ' +
+             'התוכנה תציג זאת כמגבלה.',
              mbInformation, MB_OK);
   end;
 end;

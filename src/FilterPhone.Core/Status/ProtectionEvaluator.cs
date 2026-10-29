@@ -19,7 +19,8 @@ public static class ProtectionEvaluator
 
     /// <summary>Layers proven by periodic end-to-end probes; their results expire.</summary>
     private static readonly HashSet<string> PeriodicLayers =
-        [Status.Layers.ServerPath, Status.Layers.Interception, Status.Layers.ImagePath, Status.Layers.ChromeOnly];
+        [Status.Layers.ServerPath, Status.Layers.Interception, Status.Layers.ImagePath, Status.Layers.ChromeOnly,
+         Status.Layers.StoreBlock];
 
     private static readonly string[] VerifiedLayers =
         [Status.Layers.Tunnel, Status.Layers.ServerPath, Status.Layers.KillSwitch, Status.Layers.CaTrust,
@@ -86,7 +87,8 @@ public static class ProtectionEvaluator
         {
             return OverallState.FilteringTestFailed;
         }
-        if (Get(Status.Layers.ChromeOnly).State == CheckState.Failed || Get(Status.Layers.ChromePolicy).State == CheckState.Failed)
+        if (Get(Status.Layers.ChromeOnly).State == CheckState.Failed || Get(Status.Layers.ChromePolicy).State == CheckState.Failed
+            || Get(Status.Layers.StoreBlock).State == CheckState.Failed)
         {
             return OverallState.AdminActionRequired;
         }
@@ -94,12 +96,14 @@ public static class ProtectionEvaluator
         {
             return OverallState.Connecting;
         }
-        var chrome = Fresh(Status.Layers.ChromeOnly);
-        return chrome switch
+        // Device-control layers: each must be proven, or be a known limitation of this Windows edition.
+        var device = new[] { Fresh(Status.Layers.ChromeOnly), Fresh(Status.Layers.StoreBlock) };
+        if (device.All(s => s == CheckState.Ok))
         {
-            CheckState.Ok => OverallState.Protected,
-            CheckState.Unsupported => OverallState.ProtectedWithLimitations,
-            _ => OverallState.Connecting,
-        };
+            return OverallState.Protected;
+        }
+        return device.All(s => s is CheckState.Ok or CheckState.Unsupported)
+            ? OverallState.ProtectedWithLimitations
+            : OverallState.Connecting;
     }
 }

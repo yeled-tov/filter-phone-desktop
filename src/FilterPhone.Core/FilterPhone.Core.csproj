@@ -30,5 +30,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FilterPhone.Core.Tests" />
+    <InternalsVisibleTo Include="FilterPhone.Windows.Tests" />
   </ItemGroup>
 </Project>

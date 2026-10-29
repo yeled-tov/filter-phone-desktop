@@ -20,6 +20,7 @@ public static class MachinePolicies
     public const string ChromeKey = @"SOFTWARE\Policies\Google\Chrome";
     public const string AppxKey = @"SOFTWARE\Policies\Microsoft\Windows\Appx";
     public const string SystemKey = @"SOFTWARE\Policies\Microsoft\Windows\System";
+    public const string StoreKey = @"SOFTWARE\Policies\Microsoft\WindowsStore";
 
     public static IReadOnlyList<PolicyValue> Chrome { get; } =
     [
@@ -39,6 +40,15 @@ public static class MachinePolicies
         new(AppxKey, "BlockNonAdminUserInstall", RegistryValueKind.DWord, 1),
         // Opens web links in Chrome instead of the blocked default browser (applied at the next sign-in).
         new(SystemKey, "DefaultAssociationsConfiguration", RegistryValueKind.Text, defaultAssociationsPath),
+    ];
+
+    /// <summary>
+    /// "Turn off the Store application". Windows honours it on Enterprise and Education only; on other editions
+    /// the Store is blocked by the packaged-app AppLocker rule and closed by the watchdog.
+    /// </summary>
+    public static IReadOnlyList<PolicyValue> Store { get; } =
+    [
+        new(StoreKey, "RemoveWindowsStore", RegistryValueKind.DWord, 1),
     ];
 
     /// <summary>DISM default-associations file mapping web links and pages to Google Chrome.</summary>

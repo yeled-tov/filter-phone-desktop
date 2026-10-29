@@ -1,5 +1,6 @@
 using FilterPhone.Core.Policy;
 using FilterPhone.Service.Infrastructure;
+using FilterPhone.Service.Policy;
 
 namespace FilterPhone.Windows.Tests;
 
@@ -85,5 +86,53 @@ public sealed class AppLockerEvaluationTests : IDisposable
         var d = await EvaluateAsync(admin, [edge, tool]);
         Assert.Equal("Denied", d[edge]);
         Assert.Equal("Allowed", d[tool]);
+    }
+
+    /// <summary>Two installed, non-framework Windows packages ("Name|Publisher"); the build machine has no Store.</summary>
+    private static async Task<List<(string Name, string Publisher)>> SystemPackagesAsync()
+    {
+        var r = await ProcessRunner.RunAsync(ProcessRunner.PowerShell,
+            ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+             "Get-AppxPackage -AllUsers | Where-Object { -not $_.IsFramework -and $_.SignatureKind -eq 'System' } | " +
+             "Sort-Object Name -Unique | Select-Object -First 2 | ForEach-Object { \"$($_.Name)|$($_.Publisher)\" }"],
+            TimeSpan.FromMinutes(2), CancellationToken.None);
+        Assert.True(r.ExitCode == 0, r.StdErr);
+        return r.StdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(l => l.Split('|')).Select(p => (p[0], p[1])).ToList();
+    }
+
+    [Fact]
+    public async Task Packaged_app_rule_denies_exactly_the_named_package_for_a_standard_user()
+    {
+        var user = Environment.GetEnvironmentVariable("FP_TEST_STANDARD_USER");
+        Assert.False(string.IsNullOrEmpty(user), "FP_TEST_STANDARD_USER is not set (the CI workflow creates it).");
+        var packages = await SystemPackagesAsync();
+        Assert.True(packages.Count == 2, "expected at least two installed Windows packages on the build machine");
+        var (target, publisher) = packages[0];
+        var other = packages[1].Name;
+
+        // Same rules as the Store block, aimed at a package that exists here, evaluated by Windows' engine.
+        var xml = Path.Combine(_dir, "appx-policy.xml");
+        File.WriteAllText(xml, AppLockerPolicyBuilder.Build(chromeOnly: true, blockStore: true, target, publisher).ToString());
+        Assert.Equal("Denied", await AppxPolicyCheck.DecideAsync(xml, target, user, CancellationToken.None));
+        Assert.Equal("Allowed", await AppxPolicyCheck.DecideAsync(xml, other, user, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Real_store_policy_keeps_windows_packaged_apps_allowed()
+    {
+        var user = Environment.GetEnvironmentVariable("FP_TEST_STANDARD_USER");
+        Assert.False(string.IsNullOrEmpty(user), "FP_TEST_STANDARD_USER is not set (the CI workflow creates it).");
+        var packages = await SystemPackagesAsync();
+        Assert.NotEmpty(packages);
+        var xml = Path.Combine(_dir, "store-policy.xml");
+        File.WriteAllText(xml, AppLockerPolicyBuilder.Build().ToString());
+        foreach (var (name, _) in packages)
+        {
+            Assert.Equal("Allowed", await AppxPolicyCheck.DecideAsync(xml, name, user, CancellationToken.None));
+        }
+        // The build machine (Windows Server) normally has no Store; where it does, the policy must deny it.
+        var store = await AppxPolicyCheck.DecideAsync(xml, AppLockerPolicyBuilder.StorePackageName, user, CancellationToken.None);
+        Assert.Contains(store, new[] { AppxPolicyCheck.NotInstalled, "Denied" });
     }
 }

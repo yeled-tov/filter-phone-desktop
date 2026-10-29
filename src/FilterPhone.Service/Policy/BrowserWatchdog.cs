@@ -17,7 +17,8 @@ internal sealed record ProcessSnapshot(int Pid, string? Path, string? ProductNam
 /// enforcement on Windows Home (where AppLocker is unavailable) and a second layer everywhere else.
 ///
 /// It only ever terminates a program that <see cref="BrowserBlocklist"/> positively identifies as a blocked
-/// browser (by signed product name, then by executable name). Google Chrome, Windows system processes and
+/// browser (by signed product name, then by executable name) or, when the administrator chose to block it,
+/// as the Microsoft Store app. Google Chrome, Windows system processes and
 /// everything else are never touched. It does not hide itself, inject into processes, or fight security
 /// software — it is a visible, named service that closes disallowed browsers, nothing more.
 /// </summary>
@@ -33,9 +34,15 @@ internal sealed class BrowserWatchdog(ILogger<BrowserWatchdog> log) : Background
         {
             try
             {
-                if (Active())
+                if (SecretStore.Get(SecretStore.Token) is not null)
                 {
-                    ScanAndTerminate(Default, log);
+                    // Read the administrator's choices once per scan (they are registry values).
+                    var browsers = Consent.ChromeOnly;
+                    var store = Consent.BlockStore;
+                    if (browsers || store)
+                    {
+                        ScanAndTerminate(p => Decide(p, browsers, store), log);
+                    }
                 }
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -53,12 +60,16 @@ internal sealed class BrowserWatchdog(ILogger<BrowserWatchdog> log) : Background
         }
     }
 
-    /// <summary>Runs only when the PC is enrolled and the Chrome-only protection was consented to.</summary>
-    private static bool Active() =>
-        Consent.ChromeOnly && SecretStore.Get(SecretStore.Token) is not null;
-
-    public static bool Default(ProcessSnapshot p) =>
-        BrowserBlocklist.IsBlockedBrowser(p.ProductName, p.CompanyName, p.FileName);
+    /// <summary>
+    /// The watchdog's decision. It runs only when the PC is enrolled, and only for what the administrator
+    /// consented to in the installer: other browsers (Chrome-only option) and/or the Microsoft Store.
+    /// </summary>
+    public static bool Decide(ProcessSnapshot p, bool blockBrowsers, bool blockStore)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        return (blockBrowsers && BrowserBlocklist.IsBlockedBrowser(p.ProductName, p.CompanyName, p.FileName))
+            || (blockStore && BrowserBlocklist.IsMicrosoftStore(p.Path));
+    }
 
     /// <summary>
     /// Enumerates processes and terminates those the predicate marks as blocked. Separated from the loop and
@@ -115,12 +126,12 @@ internal sealed class BrowserWatchdog(ILogger<BrowserWatchdog> log) : Background
         try
         {
             proc.Kill(entireProcessTree: true);
-            log.LogInformation("Blocked browser terminated: {Name} ({Product})", snapshot.FileName,
+            log.LogInformation("Blocked program closed: {Name} ({Product})", snapshot.FileName,
                 snapshot.ProductName ?? "?");
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
         {
-            log.LogWarning("Could not terminate blocked browser {Name}: {Error}", snapshot.FileName, e.Message);
+            log.LogWarning("Could not close blocked program {Name}: {Error}", snapshot.FileName, e.Message);
         }
     }
 

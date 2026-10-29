@@ -11,6 +11,7 @@ internal static class Consent
     public static bool CertificateTrust => Read("CertificateTrust");
     public static bool NetworkLock => Read("NetworkLock");
     public static bool ChromeOnly => Read("ChromeOnly");
+    public static bool BlockStore => Read("BlockStore");
 
     private static bool Read(string name)
     {

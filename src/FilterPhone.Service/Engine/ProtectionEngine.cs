@@ -676,13 +676,15 @@ internal sealed class ProtectionEngine(
         try
         {
             var current = _checks.TryGetValue(Layers.ChromeOnly, out var c) ? c : LayerCheck.Unknown(Layers.ChromeOnly);
-            if (_state.AppLockerMode is null || current.State == CheckState.Failed)
+            if (_state.AppLockerMode is null || current.State == CheckState.Failed || ChromeOnlyEnforcer.PolicyOutdated(_state))
             {
                 var applied = await chromeOnly.ApplyAsync(_state, ct).ConfigureAwait(false);
                 Set(Layers.ChromeOnly, applied.State, applied.Code);
                 Set(Layers.ChromePolicy, ChromeOnlyEnforcer.MachinePoliciesApplied() ? CheckState.Ok : CheckState.Failed, "applied");
                 if (applied.State is CheckState.Failed or CheckState.Unsupported)
                 {
+                    var store = await chromeOnly.VerifyStoreAsync(_state, applied, ct).ConfigureAwait(false);
+                    Set(Layers.StoreBlock, store.State, store.Code);
                     _policyBackoff.Failed(now);
                     return;
                 }
@@ -692,6 +694,8 @@ internal sealed class ProtectionEngine(
             {
                 var verified = await chromeOnly.VerifyAsync(_state, ct).ConfigureAwait(false);
                 Set(Layers.ChromeOnly, verified.State, verified.Code);
+                var store = await chromeOnly.VerifyStoreAsync(_state, verified, ct).ConfigureAwait(false);
+                Set(Layers.StoreBlock, store.State, store.Code);
                 _nextChromeVerify = now + (verified.State == CheckState.Ok ? VerifyEvery : TimeSpan.FromMinutes(1));
                 if (verified.State == CheckState.Ok)
                 {

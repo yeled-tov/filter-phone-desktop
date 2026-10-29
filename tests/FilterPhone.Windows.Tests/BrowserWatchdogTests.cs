@@ -113,4 +113,21 @@ public sealed class BrowserWatchdogTests : IDisposable
             KillAndWait(systemCmd);
         }
     }
+
+    [Fact]
+    public void Decision_follows_the_administrators_choices()
+    {
+        var store = new ProcessSnapshot(1, @"C:\Program Files\WindowsApps\Microsoft.WindowsStore_22410.1401.5.0_x64__8wekyb3d8bbwe\WinStore.App.exe",
+            "Microsoft Store", "Microsoft Corporation", "WinStore.App.exe");
+        var edge = new ProcessSnapshot(2, @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            "Microsoft Edge", "Microsoft Corporation", "msedge.exe");
+        var chrome = new ProcessSnapshot(3, @"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            "Google Chrome", "Google LLC", "chrome.exe");
+
+        Assert.True(BrowserWatchdog.Decide(store, blockBrowsers: false, blockStore: true));
+        Assert.False(BrowserWatchdog.Decide(store, blockBrowsers: true, blockStore: false));
+        Assert.True(BrowserWatchdog.Decide(edge, blockBrowsers: true, blockStore: false));
+        Assert.False(BrowserWatchdog.Decide(edge, blockBrowsers: false, blockStore: true));
+        Assert.False(BrowserWatchdog.Decide(chrome, blockBrowsers: true, blockStore: true));
+    }
 }

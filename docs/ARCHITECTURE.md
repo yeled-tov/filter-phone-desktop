@@ -48,7 +48,8 @@ VPN ומפתח משלו, ומדווח ב-heartbeat בדיוק כמו טלפון.
 - `Network/WfpKillSwitch` — מסננים קבועים ב-WFP (ראו SECURITY.md).
 - `Trust/TrustStore` — מוסיף/מסיר את תעודת הסינון ב-`LocalMachine\Root`.
 - `Policy/ChromeOnlyEnforcer` + `LaunchProbe` — אכיפת Chrome-בלבד ואימות אמיתי.
-- `Policy/BrowserWatchdog` — סוגר מיד כל דפדפן חסום שנפתח (מקביל ל"מגן" באנדרואיד; האכיפה הראשית ב-Home).
+- `Policy/BrowserWatchdog` — סוגר מיד כל דפדפן חסום שנפתח, ואת חנות Microsoft אם נבחרה חסימתה (מקביל ל"מגן" באנדרואיד; האכיפה הראשית ב-Home).
+- `Policy/AppxPolicyCheck` — שואל את מנוע AppLocker של Windows איך המדיניות מחליטה על אפליקציה ארוזה מותקנת.
 - `Verification/NetworkVerifier` — הבדיקות בפועל (HTTPS, תמונה, תעבורה).
 - `Engine/ProtectionEngine` — לולאת ההגנה: מיישרת כל שכבה, עם backoff חסום.
 - `Ipc/PipeServer` — Named Pipe עם ACL מצמצם ומערכת פקודות קבועה.
@@ -87,6 +88,7 @@ WPF עם `FlowDirection=RightToLeft`, מודע-DPI לכל מסך. מדבר עם 
 | `image_path` | בקשת תמונה עוברת דרך הפרוקסי (כותרת `x-filterphone` / תעודת הסינון) |
 | `chrome_only` | בדיקת הרצה: Chrome מורשה, Edge/נייד נחסמים |
 | `chrome_policy` | מדיניות Chrome במכונה הוחלה |
+| `store_block` | כלל החנות הוחל + `Test-AppLockerPolicy` קובע שחבילת החנות נחסמת + אכיפת AppLocker הוכחה (או "לא התבקש") |
 
 handshake מוצלח **אינו** מוכיח אינטרנט; קריאת API מוצלחת **אינה** מוכיחה מנהרה;
 מנהרה פעילה **אינה** מוכיחה סינון תמונות. כל שכבה נבדקת לבדה.

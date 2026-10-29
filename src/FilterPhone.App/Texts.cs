@@ -10,9 +10,9 @@ public static class Texts
     public static string StateExplanation(OverallState s) => s switch
     {
         OverallState.Protected =>
-            "החיבור לשרת הסינון, חסימת הגלישה מחוץ לסינון, תעודת הסינון, מסלול סינון התמונות והגבלת הדפדפנים נבדקו ועברו.",
+            "החיבור לשרת הסינון, חסימת הגלישה מחוץ לסינון, תעודת הסינון, מסלול סינון התמונות, הגבלת הדפדפנים וחסימת החנות נבדקו ועברו.",
         OverallState.ProtectedWithLimitations =>
-            "הסינון ברשת פעיל ונבדק, אבל במחשב הזה לא ניתן לחסום דפדפנים אחרים מלבד Chrome. פרטים בהמשך.",
+            "הסינון ברשת פעיל ונבדק. במחשב הזה חלק מהחסימות לא נעשות מראש, אלא בסגירה מיידית של מה שנפתח. פרטים בהמשך.",
         OverallState.Connecting => "מתחבר לשרת הסינון ובודק כל שכבת הגנה. זה לוקח בדרך כלל פחות מדקה.",
         OverallState.Reconnecting => "החיבור לשרת הסינון נותק ומתחבר מחדש. בינתיים הגלישה חסומה כדי שלא תעבור בלי סינון.",
         OverallState.ServerUnavailable => "שרת הסינון לא זמין כרגע. הגלישה חסומה עד שהחיבור יחזור. ננסה שוב אוטומטית.",
@@ -35,6 +35,7 @@ public static class Texts
         Layers.ImagePath => "מסלול סינון התמונות",
         Layers.ChromeOnly => "גלישה ב-Google Chrome בלבד",
         Layers.ChromePolicy => "הגדרות Chrome",
+        Layers.StoreBlock => "חסימת חנות Microsoft",
         _ => layer,
     };
 
@@ -84,6 +85,11 @@ public static class Texts
         "no_user_session" => "ממתין למשתמש מחובר כדי לבדוק.",
         "not_applied" or "applied_csp" => "מחיל ובודק את ההגדרה.",
         "not_checked" => string.Empty,
+        "not_requested" => "לא הופעל — לפי הבחירה בזמן ההתקנה.",
+        "store_not_installed" => "חנות Microsoft לא מותקנת במחשב הזה.",
+        "store_closed_on_open" => "ב-Windows הזה החנות לא נחסמת מראש, אבל אם היא נפתחת היא נסגרת מיד.",
+        "store_not_blocked" => "החנות עדיין לא חסומה. מנסה שוב.",
+        "store_check_failed" => "בדיקת חסימת החנות לא הושלמה. מנסה שוב.",
         _ when code.StartsWith("wfp_", StringComparison.Ordinal) => "התקנת חסימת הגלישה נכשלה. פנו לתמיכה.",
         _ when code.StartsWith("http_", StringComparison.Ordinal) => "אתר הבדיקה החזיר תשובה לא צפויה.",
         _ => string.Empty,

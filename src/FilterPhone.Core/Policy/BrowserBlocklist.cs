@@ -62,4 +62,21 @@ public static class BrowserBlocklist
         }
         return BlockedFileNames.Contains(name);
     }
+
+    /// <summary>
+    /// True when <paramref name="path"/> is the Microsoft Store app (WinStore.App.exe inside its own
+    /// Microsoft.WindowsStore package folder). Matching the package folder too keeps any other program that
+    /// happens to share the file name untouched.
+    /// </summary>
+    public static bool IsMicrosoftStore(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+        var normalized = path.Replace('/', '\\');
+        var file = normalized[(normalized.LastIndexOf('\\') + 1)..];
+        return file.Equals("WinStore.App.exe", StringComparison.OrdinalIgnoreCase)
+            && normalized.Contains(@"\WindowsApps\Microsoft.WindowsStore_", StringComparison.OrdinalIgnoreCase);
+    }
 }

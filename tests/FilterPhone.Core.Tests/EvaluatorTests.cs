@@ -72,6 +72,17 @@ public class EvaluatorTests
     }
 
     [Fact]
+    public void Store_block_is_verified_like_the_browser_restriction()
+    {
+        Assert.Equal(OverallState.ProtectedWithLimitations, With(Layers.StoreBlock, CheckState.Unsupported));
+        Assert.Equal(OverallState.AdminActionRequired, With(Layers.StoreBlock, CheckState.Failed));
+        Assert.Equal(OverallState.Connecting, With(Layers.StoreBlock, CheckState.Pending));
+        var checks = AllOk();
+        checks[Layers.StoreBlock] = new LayerCheck(Layers.StoreBlock, CheckState.Unknown, "not_checked", null);
+        Assert.NotEqual(OverallState.Protected, ProtectionEvaluator.Evaluate(checks, Ctx()));
+    }
+
+    [Fact]
     public void Stale_verification_is_not_proof() =>
         Assert.Equal(OverallState.Connecting,
             ProtectionEvaluator.Evaluate(AllOk(Now - TimeSpan.FromHours(3)), Ctx()));

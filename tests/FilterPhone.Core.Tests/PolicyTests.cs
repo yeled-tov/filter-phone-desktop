@@ -13,13 +13,54 @@ public class AppLockerPolicyTests
     private static IEnumerable<XElement> ExeRules() =>
         Policy.Root!.Elements("RuleCollection").Single(e => (string?)e.Attribute("Type") == "Exe").Elements();
 
+    private static Dictionary<string, string> Modes(XDocument policy) => policy.Root!.Elements("RuleCollection")
+        .ToDictionary(e => (string)e.Attribute("Type")!, e => (string)e.Attribute("EnforcementMode")!);
+
     [Fact]
-    public void Only_executable_rules_are_enforced()
+    public void Only_executable_and_packaged_app_rules_are_enforced()
     {
-        var collections = Policy.Root!.Elements("RuleCollection")
-            .ToDictionary(e => (string)e.Attribute("Type")!, e => (string)e.Attribute("EnforcementMode")!);
+        var collections = Modes(Policy);
         Assert.Equal("Enabled", collections["Exe"]);
-        Assert.All(new[] { "Msi", "Script", "Dll", "Appx" }, t => Assert.Equal("NotConfigured", collections[t]));
+        Assert.Equal("Enabled", collections["Appx"]);
+        Assert.All(new[] { "Msi", "Script", "Dll" }, t => Assert.Equal("NotConfigured", collections[t]));
+        Assert.Equal("NotConfigured", Modes(AppLockerPolicyBuilder.Build(blockStore: false))["Appx"]);
+    }
+
+    [Fact]
+    public void Store_option_denies_only_the_microsoft_store_and_keeps_other_packaged_apps()
+    {
+        var appx = Policy.Root!.Elements("RuleCollection").Single(e => (string?)e.Attribute("Type") == "Appx").Elements().ToList();
+        Assert.Equal(2, appx.Count);
+        var allow = appx.Single(r => (string?)r.Attribute("Action") == "Allow");
+        var deny = appx.Single(r => (string?)r.Attribute("Action") == "Deny");
+        var allowCondition = allow.Descendants("FilePublisherCondition").Single();
+        Assert.Equal("*", (string?)allowCondition.Attribute("PublisherName"));
+        Assert.Equal("*", (string?)allowCondition.Attribute("ProductName"));
+        var denyCondition = deny.Descendants("FilePublisherCondition").Single();
+        Assert.Equal("Microsoft.WindowsStore", (string?)denyCondition.Attribute("ProductName"));
+        Assert.Equal(AppLockerPolicyBuilder.StorePackagePublisher, (string?)denyCondition.Attribute("PublisherName"));
+        Assert.All(appx, r => Assert.Equal(AppLockerPolicyBuilder.Everyone, (string?)r.Attribute("UserOrGroupSid")));
+        Assert.StartsWith("<RuleCollection Type=\"Appx\"", AppLockerPolicyBuilder.AppxCollectionXml(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_store_only_policy_is_still_recognised_as_ours()
+    {
+        var storeOnly = AppLockerPolicyBuilder.Build(chromeOnly: false, blockStore: true).ToString();
+        Assert.True(AppLockerPolicyBuilder.IsOurs(storeOnly));
+        Assert.False(AppLockerPolicyBuilder.HasExecutableRules(storeOnly));
+        Assert.True(AppLockerPolicyBuilder.HasAnyRules(storeOnly));
+        Assert.False(AppLockerPolicyBuilder.HasAnyRules(AppLockerPolicyBuilder.Empty().ToString()));
+        Assert.Equal("NotConfigured", Modes(AppLockerPolicyBuilder.Build(chromeOnly: false, blockStore: true))["Exe"]);
+    }
+
+    [Fact]
+    public void Store_machine_policy_turns_off_the_store_application()
+    {
+        var v = Assert.Single(MachinePolicies.Store);
+        Assert.Equal(@"SOFTWARE\Policies\Microsoft\WindowsStore", v.KeyPath);
+        Assert.Equal("RemoveWindowsStore", v.Name);
+        Assert.Equal(1, v.Value);
     }
 
     [Fact]
@@ -70,7 +111,8 @@ public class AppLockerPolicyTests
     [Fact]
     public void Rule_ids_are_unique_and_our_policy_is_recognised()
     {
-        var ids = ExeRules().Select(r => (string)r.Attribute("Id")!).ToList();
+        var ids = Policy.Descendants("FilePublisherRule").Concat(Policy.Descendants("FilePathRule"))
+            .Select(r => (string)r.Attribute("Id")!).ToList();
         Assert.Equal(ids.Count, ids.Distinct().Count());
         Assert.All(ids, id => Assert.True(Guid.TryParse(id, out _)));
         var xml = Policy.ToString();

@@ -24,9 +24,10 @@ public static class Layers
     public const string ImagePath = "image_path";        // an image request is handled by the filtering proxy
     public const string ChromeOnly = "chrome_only";      // other browsers blocked by Windows application control
     public const string ChromePolicy = "chrome_policy";  // Chrome machine policies (QUIC, DoH, proxy) applied
+    public const string StoreBlock = "store_block";      // Microsoft Store app blocked (optional, chosen at install)
 
     public static readonly string[] All =
-        [Enrollment, Tunnel, ServerPath, KillSwitch, CaTrust, Interception, ImagePath, ChromeOnly, ChromePolicy];
+        [Enrollment, Tunnel, ServerPath, KillSwitch, CaTrust, Interception, ImagePath, ChromeOnly, ChromePolicy, StoreBlock];
 }
 
 public sealed record LayerCheck(string Layer, CheckState State, string Code, DateTimeOffset? CheckedAt)
