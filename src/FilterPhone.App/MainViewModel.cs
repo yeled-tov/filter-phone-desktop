@@ -151,7 +151,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string PendingLevel => _snapshot?.Registration is { Level: > 0 } r ? "רמת סינון: " + Registration.LevelName(r.Level) : string.Empty;
     public IReadOnlyList<string> PendingOptions => _snapshot?.Registration is { } r ? Registration.TitlesOf(r.Options) : [];
     public bool HasPendingOptions => PendingOptions.Count > 0;
-    public string PendingNote => _snapshot?.Registration?.Note is { Length: > 0 } n ? $"\u201D{n}\u201C" : string.Empty;
+    public string PendingNote => _snapshot?.Registration?.Note is { Length: > 0 } n ? "הערה: " + n : string.Empty;
     public bool HasPendingNote => PendingNote.Length > 0;
     public string PendingChecked => _snapshot?.Registration?.LastChecked is { } t
         ? "נבדק מול השרת: " + Texts.Ago(t) + ". התוכנה בודקת לבד כל חצי דקה — אפשר לסגור את החלון."
@@ -250,7 +250,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ? "WhatsApp מותקן במחשב — ההודעה תיפתח בו."
         : "WhatsApp לא מותקן במחשב.";
 
-    public string Version => "גרסה " + ProductConfig.Version;
+    // The version is wrapped in left-to-right marks so "0.9.0-ci.12" is not reordered inside the Hebrew line.
+    public string Version => "גרסה \u200E" + ProductConfig.Version + "\u200E";
     public string WindowsLine => _snapshot is null ? string.Empty : $"Windows {_snapshot.WindowsEdition} · build {_snapshot.WindowsBuild}";
     public string UpdateState { get; private set; } = Updater.Configured ? string.Empty : "בדיקת עדכונים אוטומטית לא הוגדרה בגרסה זו. עדכון נעשה בהרצת תוכנת ההתקנה החדשה.";
 

@@ -231,7 +231,7 @@
       <Setter Property="Foreground" Value="{StaticResource Ink}"/>
       <Setter Property="Background" Value="{StaticResource Card}"/>
       <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
-      <Setter Property="Padding" Value="12,11"/>
+      <Setter Property="Padding" Value="12,6"/>
       <Setter Property="Margin" Value="0,6,0,14"/>
       <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="Template">
@@ -423,21 +423,22 @@
     </Style>
 
     <!-- Tabs of the status page as pills. -->
+    <!-- Only the header is coloured: the page inside a tab inherits the tab's own Foreground. -->
     <Style x:Key="PillTab" TargetType="TabItem">
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FontSize" Value="14"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="{StaticResource Navy}"/>
+      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TabItem">
             <Border x:Name="Bd" Background="Transparent" CornerRadius="14" Padding="16,8" Margin="0,0,6,0">
-              <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+              <ContentPresenter x:Name="Head" ContentSource="Header" RecognizesAccessKey="True"
+                                TextElement.Foreground="{StaticResource Navy}" TextElement.FontWeight="SemiBold"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsSelected" Value="True">
                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource PrimaryContainer}"/>
-                <Setter Property="Foreground" Value="{StaticResource Primary}"/>
+                <Setter TargetName="Head" Property="TextElement.Foreground" Value="{StaticResource Primary}"/>
               </Trigger>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource PrimaryContainer}"/>

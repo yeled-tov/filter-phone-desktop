@@ -41,18 +41,14 @@
 
     <!-- Bottom bar -->
     <Border DockPanel.Dock="Bottom" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="20,12">
-      <Grid MaxWidth="640">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="12"/>
-          <ColumnDefinition Width="2*"/>
-        </Grid.ColumnDefinitions>
-        <Button Style="{StaticResource OutlinedButton}" Content="הקודם" Command="{Binding BackCommand}" Margin="0" MinHeight="50"
-                Visibility="{Binding ShowPrevious, Converter={StaticResource Visible}}"/>
-        <Button Grid.Column="2" Style="{StaticResource FilledButton}" Command="{Binding NextCommand}" Margin="0" IsDefault="True">
+      <!-- Like the phone app: "previous" at the start (only after the first step), "next" fills the rest. -->
+      <DockPanel MaxWidth="640">
+        <Button DockPanel.Dock="Left" Style="{StaticResource OutlinedButton}" Content="הקודם" Command="{Binding BackCommand}"
+                Width="200" Margin="0,0,12,0" MinHeight="50" Visibility="{Binding ShowPrevious, Converter={StaticResource Visible}}"/>
+        <Button Style="{StaticResource FilledButton}" Command="{Binding NextCommand}" Margin="0" IsDefault="True">
           <TextBlock Text="{Binding NextLabel}" Foreground="White" FontWeight="Bold" FontSize="15"/>
         </Button>
-      </Grid>
+      </DockPanel>
     </Border>
 
     <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto">
