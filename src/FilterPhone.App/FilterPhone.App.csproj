@@ -29,4 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FilterPhone.Core\FilterPhone.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FilterPhone.App.Tests" />
+  </ItemGroup>
 </Project>

@@ -20,7 +20,9 @@ public static class Texts
         OverallState.SetupIncomplete => "ההתקנה עדיין לא הושלמה, ולכן המחשב עדיין לא מוגן.",
         OverallState.AdminActionRequired => "נדרשת פעולה של מנהל המחשב. פרטים ברשימה למטה.",
         OverallState.DeviceInactive => "המכשיר לא פעיל בשרת (ממתין לאישור, הושבת או הוסר). פנו לתמיכה.",
-        OverallState.NotEnrolled => "כדי להתחיל, הזינו את קוד ההפעלה שקיבלתם מ-FilterPhone.",
+        OverallState.NotEnrolled => "כדי להתחיל, הצטרפו לשירות או הזינו קוד הפעלה שקיבלתם מ-FilterPhone.",
+        OverallState.AwaitingApproval => "הבקשה התקבלה ומחכה לאישור. אחרי האישור המחשב מתחבר לבד.",
+        OverallState.RegistrationRejected => "הבקשה לא אושרה. אפשר לשלוח בקשה חדשה.",
         _ => string.Empty,
     };
 
@@ -107,6 +109,19 @@ public static class Texts
         "conflict" => "המכשיר כבר רשום. נסו שוב.",
         "bad_request" => "הנתונים שהוזנו לא תקינים.",
         _ => serverMessage ?? "ההפעלה לא הושלמה. נסו שוב או פנו לתמיכה.",
+    };
+
+    public static string RegisterError(string? code, string? serverMessage) => code switch
+    {
+        "bad_request" => serverMessage ?? "חלק מהפרטים לא תקינים. בדקו ונסו שוב.",
+        "rate_limited" => "נשלחו כמה בקשות ברצף. נסו שוב בעוד כמה דקות.",
+        "registration_closed" => serverMessage ?? "ההרשמה סגורה כרגע. פנו אלינו לקבלת קוד הפעלה.",
+        "already_registered" => "כבר נשלחה בקשה מהמחשב הזה. היא מחכה לאישור.",
+        "already_enrolled" => "המחשב כבר מופעל.",
+        "conflict" => "המחשב כבר רשום. נסו שוב.",
+        "wireguard_missing" => "רכיב ה-VPN לא מותקן. הריצו שוב את תוכנת ההתקנה.",
+        "network" => "אין חיבור לשרת FilterPhone. בדקו את החיבור לאינטרנט ונסו שוב.",
+        _ => serverMessage ?? "השליחה לא הצליחה. נסו שוב בעוד כמה דקות.",
     };
 
     public const string ServiceDown =

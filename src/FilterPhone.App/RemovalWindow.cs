@@ -38,9 +38,12 @@ public sealed class RemovalWindow : Window
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Background = (Brush)Application.Current.Resources["Page"];
+        Foreground = (Brush)Application.Current.Resources["Ink"];
         Topmost = true;
 
-        _ok.Style = (Style)Application.Current.Resources["Primary"];
+        _ok.Style = (Style)Application.Current.Resources["FilledButton"];
+        _ok.Margin = new Thickness(0, 0, 10, 8);
+        _ok.MinHeight = 44;
         _ok.Click += async (_, _) => await SubmitAsync();
         var cancel = new Button { Content = "ביטול", IsCancel = true };
         cancel.Click += (_, _) => Close();

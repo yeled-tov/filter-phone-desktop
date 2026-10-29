@@ -5,6 +5,7 @@
     <Project Path="src/FilterPhone.Service/FilterPhone.Service.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/FilterPhone.App.Tests/FilterPhone.App.Tests.csproj" />
     <Project Path="tests/FilterPhone.Core.Tests/FilterPhone.Core.Tests.csproj" />
     <Project Path="tests/FilterPhone.Windows.Tests/FilterPhone.Windows.Tests.csproj" />
   </Folder>

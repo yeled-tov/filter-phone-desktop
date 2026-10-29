@@ -1031,7 +1031,7 @@ internal sealed class ProtectionEngine(
 
     public async Task<ProtectionSnapshot> VerifyNowAsync(CancellationToken ct)
     {
-        _nextServerSync = _nextVerify = _nextDataProbe = _nextChromeVerify = DateTimeOffset.MinValue;
+        _nextServerSync = _nextVerify = _nextDataProbe = _nextChromeVerify = _nextRegistrationCheck = DateTimeOffset.MinValue;
         _apiBackoff.Succeeded();
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try

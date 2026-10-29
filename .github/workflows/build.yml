@@ -77,6 +77,23 @@ jobs:
           --filter "Category!=Contract" --logger "trx;LogFileName=core.trx"
           --results-directory artifacts/test-results
 
+      - name: UI screenshots (every page rendered with sample data; fails on binding errors)
+        shell: pwsh
+        env:
+          FP_SCREENS_DIR: ${{ github.workspace }}/artifacts/screens
+        run: >
+          dotnet test tests/FilterPhone.App.Tests -c Release --no-build
+          --logger "trx;LogFileName=app.trx" --results-directory artifacts/test-results
+
+      - name: Upload UI screenshots
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screens
+          path: artifacts/screens/*.png
+          if-no-files-found: warn
+          retention-days: 14
+
       # ----- Contract tests against the real FilterPhone backend code -----
       - name: Check out the FilterPhone backend (pinned)
         uses: actions/checkout@v4

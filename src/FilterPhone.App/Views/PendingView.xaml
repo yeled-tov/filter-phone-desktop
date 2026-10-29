@@ -1,0 +1,91 @@
+<UserControl x:Class="FilterPhone.App.Views.PendingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- After registering (pending_screen.dart): the request is with the administrator; the PC connects by
+       itself once it is approved. DataContext: MainViewModel. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="560" Margin="20,24,20,20">
+      <Grid Width="96" Height="96" HorizontalAlignment="Center">
+        <Ellipse Fill="{StaticResource PrimaryContainer}" Visibility="{Binding IsWaiting, Converter={StaticResource Visible}}"/>
+        <Ellipse Fill="{StaticResource BadContainer}" Visibility="{Binding IsRejected, Converter={StaticResource Visible}}"/>
+        <Path Data="{StaticResource IconHourglass}" Style="{StaticResource Icon}" Width="46" Height="46" StrokeThickness="2.2"
+              Visibility="{Binding IsWaiting, Converter={StaticResource Visible}}"/>
+        <Path Data="{StaticResource IconBlock}" Style="{StaticResource Icon}" Stroke="{StaticResource Bad}" Width="46" Height="46"
+              StrokeThickness="2.2" Visibility="{Binding IsRejected, Converter={StaticResource Visible}}"/>
+      </Grid>
+      <TextBlock Style="{StaticResource Display}" FontSize="25" Margin="0,16,0,8" Text="{Binding PendingTitle}"
+                 AutomationProperties.LiveSetting="Polite"/>
+      <TextBlock TextAlignment="Center" FontSize="15" Text="{Binding PendingMessage}" Margin="0,0,0,22"/>
+
+      <Border Style="{StaticResource CardBorder}" Visibility="{Binding IsWaiting, Converter={StaticResource Visible}}">
+        <StackPanel>
+          <TextBlock Style="{StaticResource CardTitle}" Text="מה קורה עכשיו?" Margin="0,0,0,10"/>
+          <DockPanel Margin="0,5">
+            <Grid Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Top">
+              <Ellipse Fill="{StaticResource Primary}"/>
+              <Path Data="{StaticResource IconCheck}" Style="{StaticResource Icon}" Stroke="White" Width="12" Height="12" StrokeThickness="2.6"/>
+            </Grid>
+            <TextBlock VerticalAlignment="Center" Text="הבקשה הגיעה למנהל, עם כל מה שבחרתם."/>
+          </DockPanel>
+          <DockPanel Margin="0,5">
+            <Grid Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Top">
+              <Ellipse Fill="{StaticResource Track}"/>
+              <TextBlock Text="2" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+            <TextBlock VerticalAlignment="Center" Text="נחזור אליכם להסדרת התשלום."/>
+          </DockPanel>
+          <DockPanel Margin="0,5">
+            <Grid Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Top">
+              <Ellipse Fill="{StaticResource Track}"/>
+              <TextBlock Text="3" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+            <TextBlock VerticalAlignment="Center" Text="אחרי האישור — המחשב מתחבר לבד וחסימת הגלישה מופעלת. אפשר לסגור את החלון בינתיים."/>
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Style="{StaticResource CardTitle}" Text="מה ביקשתם" Margin="0,0,0,8"/>
+          <TextBlock Text="{Binding PendingWho}"/>
+          <TextBlock Text="{Binding PendingLevel}" Foreground="{StaticResource Muted}" Margin="0,2,0,0"/>
+          <ItemsControl ItemsSource="{Binding PendingOptions}" Margin="0,8,0,0" Focusable="False"
+                        Visibility="{Binding HasPendingOptions, Converter={StaticResource Visible}}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{StaticResource PrimaryContainer}" CornerRadius="12" Padding="10,4" Margin="0,0,6,6">
+                  <TextBlock Text="{Binding}" FontSize="13" Foreground="{StaticResource Navy}"/>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Style="{StaticResource Hint}" Text="{Binding PendingNote}" Margin="0,6,0,0"
+                     Visibility="{Binding HasPendingNote, Converter={StaticResource Visible}}"/>
+        </StackPanel>
+      </Border>
+
+      <TextBlock Style="{StaticResource Hint}" TextAlignment="Center" Text="{Binding PendingChecked}" Margin="0,0,0,14"
+                 Visibility="{Binding IsWaiting, Converter={StaticResource Visible}}"/>
+
+      <StackPanel Visibility="{Binding IsWaiting, Converter={StaticResource Visible}}">
+        <Button Style="{StaticResource OutlinedButton}" Command="{Binding CheckNowCommand}">
+          <StackPanel Orientation="Horizontal">
+            <Path Data="{StaticResource IconRefresh}" Style="{StaticResource Icon}" Width="18" Height="18" Margin="0,0,8,0"/>
+            <TextBlock Text="בדיקה עכשיו" Foreground="{StaticResource Primary}" FontWeight="SemiBold" FontSize="15"/>
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource TextButton}" Content="ביטול הבקשה" Command="{Binding CancelRequestCommand}" HorizontalAlignment="Center"/>
+      </StackPanel>
+      <Button Style="{StaticResource FilledButton}" Content="שליחת בקשה חדשה" Command="{Binding NewRequestCommand}"
+              Visibility="{Binding IsRejected, Converter={StaticResource Visible}}"/>
+
+      <TextBlock Text="{Binding Message}" Visibility="{Binding HasMessage, Converter={StaticResource Visible}}"
+                 FontWeight="SemiBold" TextAlignment="Center" Margin="0,8,0,0"/>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -49,13 +49,28 @@ public sealed class RelayCommand(Func<Task> run, Func<bool>? can = null) : IComm
     public void Raise() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
 
+/// <summary>Which page the window shows.</summary>
+public enum AppScreen
+{
+    Loading,
+    Welcome,
+    Register,
+    Activation,
+    Pending,
+    Status,
+}
+
 public sealed class MainViewModel : INotifyPropertyChanged
 {
-    private static readonly Brush Green = Brush("#1B7F3B");
-    private static readonly Brush Amber = Brush("#8A5A00");
-    private static readonly Brush Blue = Brush("#1E5AA8");
-    private static readonly Brush Red = Brush("#B3261E");
+    // Status colours of the phone app (StatusColors) and its primary blue.
+    private static readonly Brush Green = Brush("#1A7F37");
+    private static readonly Brush Amber = Brush("#9C6500");
+    private static readonly Brush Blue = Brush("#0B78BD");
+    private static readonly Brush Red = Brush("#C62828");
     private static readonly Brush Gray = Brush("#5F6B7A");
+
+    private AppScreen _localScreen = AppScreen.Welcome;
+    private bool _gotSnapshot;
 
     private ProtectionSnapshot? _snapshot;
     private string _code = string.Empty;
@@ -76,6 +91,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
         WhatsAppCommand = new RelayCommand(OpenSupportAsync);
         EmailCommand = new RelayCommand(OpenEmailAsync, () => EmailConfigured);
         UpdateCommand = new RelayCommand(CheckUpdateAsync);
+        StartRegisterCommand = new RelayCommand(StartRegisterAsync);
+        StartActivationCommand = new RelayCommand(() => { Show(AppScreen.Activation); return Task.CompletedTask; });
+        BackToWelcomeCommand = new RelayCommand(() => { Show(AppScreen.Welcome); return Task.CompletedTask; });
+        CheckNowCommand = new RelayCommand(CheckNowAsync, () => !Busy);
+        CancelRequestCommand = new RelayCommand(CancelRequestAsync, () => !Busy);
+        NewRequestCommand = new RelayCommand(NewRequestAsync, () => !Busy);
+        Registration = new RegistrationViewModel();
+        Registration.Submitted += (_, snapshot) =>
+        {
+            Message = string.Empty;
+            Apply(snapshot);
+        };
+        Registration.Left += (_, _) => Show(AppScreen.Welcome);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -87,12 +115,62 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand WhatsAppCommand { get; }
     public RelayCommand EmailCommand { get; }
     public RelayCommand UpdateCommand { get; }
+    public RelayCommand StartRegisterCommand { get; }
+    public RelayCommand StartActivationCommand { get; }
+    public RelayCommand BackToWelcomeCommand { get; }
+    public RelayCommand CheckNowCommand { get; }
+    public RelayCommand CancelRequestCommand { get; }
+    public RelayCommand NewRequestCommand { get; }
+
+    public RegistrationViewModel Registration { get; }
 
     public ObservableCollection<LayerRow> Rows { get; } = [];
 
-    public bool IsEnrolled => _snapshot is { Overall: not OverallState.NotEnrolled };
-    public bool ShowActivation => _serviceReachable && !IsEnrolled;
-    public bool ShowStatus => _serviceReachable && IsEnrolled;
+    public bool IsEnrolled => _snapshot is { Overall: not (OverallState.NotEnrolled or OverallState.AwaitingApproval or OverallState.RegistrationRejected) };
+
+    /// <summary>The page: the service decides once the PC is registered or activated; before that the user navigates.</summary>
+    public AppScreen Screen => !_gotSnapshot ? AppScreen.Loading
+        : _snapshot!.Overall is OverallState.AwaitingApproval or OverallState.RegistrationRejected ? AppScreen.Pending
+        : IsEnrolled ? AppScreen.Status
+        : _localScreen;
+
+    public bool ShowLoading => _serviceReachable && Screen == AppScreen.Loading;
+    public bool ShowWelcome => _serviceReachable && Screen == AppScreen.Welcome;
+    public bool ShowRegister => _serviceReachable && Screen == AppScreen.Register;
+    public bool ShowActivation => _serviceReachable && Screen == AppScreen.Activation;
+    public bool ShowPending => _serviceReachable && Screen == AppScreen.Pending;
+    public bool ShowStatus => _serviceReachable && Screen == AppScreen.Status;
+
+    // ---- waiting for approval
+    public bool IsRejected => _snapshot?.Overall == OverallState.RegistrationRejected;
+    public bool IsWaiting => !IsRejected;
+    public string PendingTitle => IsRejected ? "הבקשה לא אושרה" : "הבקשה נשלחה!";
+    public string PendingMessage => _snapshot?.Registration?.Message is { Length: > 0 } m ? m
+        : IsRejected ? "הבקשה לא אושרה. אפשר לשלוח בקשה חדשה." : "הבקשה התקבלה ומחכה לאישור. נעדכן ברגע שהחיבור ייפתח.";
+    public string PendingWho => _snapshot?.Registration is { } r ? $"{r.Name} · {r.Phone}" : string.Empty;
+    public string PendingLevel => _snapshot?.Registration is { Level: > 0 } r ? "רמת סינון: " + Registration.LevelName(r.Level) : string.Empty;
+    public IReadOnlyList<string> PendingOptions => _snapshot?.Registration is { } r ? Registration.TitlesOf(r.Options) : [];
+    public bool HasPendingOptions => PendingOptions.Count > 0;
+    public string PendingNote => _snapshot?.Registration?.Note is { Length: > 0 } n ? $"\u201D{n}\u201C" : string.Empty;
+    public bool HasPendingNote => PendingNote.Length > 0;
+    public string PendingChecked => _snapshot?.Registration?.LastChecked is { } t
+        ? "נבדק מול השרת: " + Texts.Ago(t) + ". התוכנה בודקת לבד כל חצי דקה — אפשר לסגור את החלון."
+        : "התוכנה בודקת לבד כל חצי דקה — אפשר לסגור את החלון.";
+
+    // ---- status hero
+    public Geometry StateIcon => (Geometry)Application.Current.Resources[
+        _snapshot?.Overall is OverallState.Protected or OverallState.ProtectedWithLimitations ? "IconShieldCheck" : "IconShieldAlert"];
+    public Brush StateTint
+    {
+        get
+        {
+            var c = ((SolidColorBrush)StateColor).Color;
+            var b = new SolidColorBrush(Color.FromArgb(0x1C, c.R, c.G, c.B));
+            b.Freeze();
+            return b;
+        }
+    }
+    public string LevelLine => _snapshot?.LevelName is { Length: > 0 } l ? "רמת סינון: " + l : string.Empty;
     public bool ServiceUnreachable => !_serviceReachable;
     public string ServiceProblem { get; private set; } = Texts.ServiceDown;
 
@@ -144,6 +222,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             VerifyCommand.Raise();
             ReconnectCommand.Raise();
             ExportCommand.Raise();
+            CheckNowCommand.Raise();
+            CancelRequestCommand.Raise();
+            NewRequestCommand.Raise();
         }
     }
 
@@ -213,6 +294,87 @@ public sealed class MainViewModel : INotifyPropertyChanged
             else
             {
                 Message = Texts.EnrollError(r.Error, r.Message);
+            }
+        }
+        catch (Exception e) when (e is ServiceUnavailableException or IOException or OperationCanceledException or InvalidDataException)
+        {
+            Message = Texts.ServiceDown;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private void Show(AppScreen screen)
+    {
+        _localScreen = screen;
+        Message = string.Empty;
+        RaiseScreen();
+    }
+
+    private async Task StartRegisterAsync()
+    {
+        Show(AppScreen.Register);
+        if (!Registration.CatalogReady)
+        {
+            await Registration.LoadCatalogAsync();
+        }
+    }
+
+    private async Task CheckNowAsync()
+    {
+        Busy = true;
+        try
+        {
+            var r = await ServiceClient.SendAsync(IpcProtocol.Commands.Verify, null, TimeSpan.FromMinutes(1));
+            if (r.Ok)
+            {
+                Apply(ServiceClient.ParseSnapshot(r.Data));
+            }
+        }
+        catch (Exception e) when (e is ServiceUnavailableException or IOException or OperationCanceledException or InvalidDataException)
+        {
+            Message = Texts.ServiceDown;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private async Task CancelRequestAsync()
+    {
+        if (MessageBox.Show("הבקשה תימחק, ותוכלו להירשם מחדש בכל עת.", "לבטל את הבקשה?", MessageBoxButton.YesNo,
+                MessageBoxImage.Question, MessageBoxResult.No, MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign)
+            != MessageBoxResult.Yes)
+        {
+            return;
+        }
+        await WithdrawAsync();
+        Show(AppScreen.Welcome);
+    }
+
+    private async Task NewRequestAsync()
+    {
+        var previous = _snapshot?.Registration;
+        await WithdrawAsync();
+        if (previous is not null)
+        {
+            Registration.Prefill(previous);
+        }
+        await StartRegisterAsync();
+    }
+
+    private async Task WithdrawAsync()
+    {
+        Busy = true;
+        try
+        {
+            var r = await ServiceClient.SendAsync(IpcProtocol.Commands.CancelRegistration, null, TimeSpan.FromSeconds(30));
+            if (r.Ok)
+            {
+                Apply(ServiceClient.ParseSnapshot(r.Data));
             }
         }
         catch (Exception e) when (e is ServiceUnavailableException or IOException or OperationCanceledException or InvalidDataException)
@@ -398,6 +560,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
         _snapshot = s;
+        _gotSnapshot = true;
         Rows.Clear();
         foreach (var layer in Layers.All)
         {
@@ -424,7 +587,43 @@ public sealed class MainViewModel : INotifyPropertyChanged
                  {
                      nameof(IsEnrolled), nameof(ShowActivation), nameof(ShowStatus), nameof(StateTitle), nameof(StateExplanation),
                      nameof(StateColor), nameof(LastVerified), nameof(DeviceLine), nameof(SupportNumber), nameof(SupportNumberDisplay),
-                     nameof(WindowsLine), nameof(ServerMessage), nameof(HasServerMessage),
+                     nameof(WindowsLine), nameof(ServerMessage), nameof(HasServerMessage), nameof(StateIcon), nameof(StateTint),
+                     nameof(LevelLine), nameof(IsRejected), nameof(IsWaiting), nameof(PendingTitle), nameof(PendingMessage),
+                     nameof(PendingWho), nameof(PendingLevel), nameof(PendingOptions), nameof(HasPendingOptions),
+                     nameof(PendingNote), nameof(HasPendingNote), nameof(PendingChecked),
+                 })
+        {
+            Changed(p);
+        }
+        RaiseScreen();
+        if (s.Registration is not null && !Registration.CatalogReady && !Registration.Loading)
+        {
+            // Option titles for the "what you asked for" card.
+            _ = Registration.LoadCatalogAsync().ContinueWith(_ => Application.Current?.Dispatcher.Invoke(() =>
+            {
+                Changed(nameof(PendingOptions));
+                Changed(nameof(PendingLevel));
+            }), TaskScheduler.Default);
+        }
+    }
+
+    /// <summary>For previews and tests: show a snapshot without the service.</summary>
+    internal void ApplyForPreview(ProtectionSnapshot snapshot) => Apply(snapshot);
+
+    /// <summary>For previews and tests: open a page before activation.</summary>
+    internal void ShowForPreview(AppScreen screen)
+    {
+        _gotSnapshot = true;
+        _snapshot ??= new ProtectionSnapshot { Overall = OverallState.NotEnrolled, Checks = new Dictionary<string, LayerCheck>() };
+        Show(screen);
+    }
+
+    private void RaiseScreen()
+    {
+        foreach (var p in new[]
+                 {
+                     nameof(Screen), nameof(ShowLoading), nameof(ShowWelcome), nameof(ShowRegister), nameof(ShowActivation),
+                     nameof(ShowPending), nameof(ShowStatus),
                  })
         {
             Changed(p);
@@ -439,10 +638,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         _serviceReachable = reachable;
         ServiceProblem = problem;
-        foreach (var p in new[] { nameof(ShowActivation), nameof(ShowStatus), nameof(ServiceUnreachable), nameof(ServiceProblem) })
+        foreach (var p in new[] { nameof(ServiceUnreachable), nameof(ServiceProblem) })
         {
             Changed(p);
         }
+        RaiseScreen();
     }
 
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -1,166 +1,48 @@
 <Window x:Class="FilterPhone.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:FilterPhone.App.Views"
         Title="FilterPhone למחשב"
         Icon="Assets/filterphone.ico"
         FlowDirection="RightToLeft"
         Language="he-IL"
         FontFamily="Segoe UI"
-        Width="760" Height="820" MinWidth="560" MinHeight="560"
+        Foreground="{StaticResource Ink}"
+        Width="760" Height="860" MinWidth="560" MinHeight="600"
         Background="{StaticResource Page}"
         WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
-  <DockPanel>
-    <Border DockPanel.Dock="Top" Background="{StaticResource Brand}" Padding="20,14">
-      <StackPanel Orientation="Horizontal">
-        <Image Source="Assets/filterphone.ico" Width="36" Height="36" Margin="0,0,0,0" AutomationProperties.Name="סמל FilterPhone"/>
-        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-          <TextBlock Text="FilterPhone למחשב" Foreground="White" FontSize="20" FontWeight="SemiBold"/>
-          <TextBlock Text="{Binding Version}" Foreground="#C9D6EA" FontSize="12"/>
+  <DockPanel x:Name="Root">
+    <!-- App bar, like the phone app: white, navy title, FilterPhone shield. -->
+    <Border DockPanel.Dock="Top" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="20,12">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Hint}" VerticalAlignment="Center" Text="{Binding Version}"/>
+        <StackPanel Orientation="Horizontal">
+          <Grid Width="38" Height="38">
+            <Ellipse Fill="{StaticResource PrimaryContainer}"/>
+            <Path Data="{StaticResource IconShield}" Style="{StaticResource Icon}" Width="22" Height="22" StrokeThickness="2"/>
+          </Grid>
+          <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Foreground="{StaticResource Navy}"
+                     Text="FilterPhone למחשב"/>
         </StackPanel>
-      </StackPanel>
+      </DockPanel>
     </Border>
 
-    <TabControl Margin="12" Background="Transparent" BorderThickness="0">
-      <!-- ============================================== status / activation -->
-      <TabItem Header="_מצב ההגנה" AutomationProperties.Name="מצב ההגנה">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
-          <StackPanel Margin="4">
-
-            <Border Style="{StaticResource CardBorder}" Visibility="{Binding ServiceUnreachable, Converter={StaticResource Visible}}">
-              <TextBlock Text="{Binding ServiceProblem}" Foreground="#B3261E" FontWeight="SemiBold"/>
-            </Border>
-
-            <!-- First run: activation -->
-            <Border Style="{StaticResource CardBorder}" Visibility="{Binding ShowActivation, Converter={StaticResource Visible}}">
-              <StackPanel>
-                <TextBlock Style="{StaticResource Title}" Text="הפעלת FilterPhone במחשב"/>
-                <TextBlock Margin="0,8,0,14" Text="הזינו את קוד ההפעלה שקיבלתם. אחרי ההפעלה המחשב יתחבר לשרת הסינון של FilterPhone, הגלישה תעבור דרך סינון האתרים והתמונות, וגלישה מחוץ לסינון תיחסם."/>
-                <Label Content="_קוד הפעלה" Target="{Binding ElementName=CodeBox}" Padding="0"/>
-                <TextBox x:Name="CodeBox" Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
-                         MaxLength="80" AutomationProperties.Name="קוד הפעלה" CharacterCasing="Upper"/>
-                <Label Content="_שם המחשב (לא חובה)" Target="{Binding ElementName=NameBox}" Padding="0"/>
-                <TextBox x:Name="NameBox" Text="{Binding DeviceName, UpdateSourceTrigger=PropertyChanged}" MaxLength="60"
-                         AutomationProperties.Name="שם המחשב"/>
-                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12"
-                           Text="נשלחים לשרת רק המפתח הציבורי של החיבור, שם המחשב שבחרתם ומזהה אקראי של ההתקנה. לא נשלחים סיסמאות, היסטוריית גלישה או קבצים."/>
-                <WrapPanel>
-                  <Button Style="{StaticResource Primary}" Content="_הפעלה" Command="{Binding ActivateCommand}" IsDefault="True"/>
-                </WrapPanel>
-              </StackPanel>
-            </Border>
-
-            <!-- Enrolled: verified status -->
-            <Border Style="{StaticResource CardBorder}" BorderBrush="{Binding StateColor}" BorderThickness="2"
-                    Visibility="{Binding ShowStatus, Converter={StaticResource Visible}}">
-              <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                  <Ellipse Width="18" Height="18" Fill="{Binding StateColor}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                  <TextBlock Style="{StaticResource Title}" Text="{Binding StateTitle}" Foreground="{Binding StateColor}"
-                             AutomationProperties.LiveSetting="Polite"/>
-                </StackPanel>
-                <TextBlock Margin="0,8,0,4" Text="{Binding StateExplanation}"/>
-                <TextBlock Margin="0,4,0,0" Text="{Binding ServerMessage}" Visibility="{Binding HasServerMessage, Converter={StaticResource Visible}}"/>
-                <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" Text="{Binding LastVerified}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="{Binding DeviceLine}"/>
-              </StackPanel>
-            </Border>
-
-            <Border Style="{StaticResource CardBorder}" Visibility="{Binding ShowStatus, Converter={StaticResource Visible}}">
-              <StackPanel>
-                <TextBlock FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8" Text="שכבות ההגנה — כל אחת נבדקת בנפרד"/>
-                <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Grid Margin="0,6" AutomationProperties.Name="{Binding Accessible}" Focusable="True">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="Auto"/>
-                          <ColumnDefinition Width="*"/>
-                          <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Ellipse Width="12" Height="12" Fill="{Binding Color}" VerticalAlignment="Top" Margin="0,5,10,0"/>
-                        <StackPanel Grid.Column="1">
-                          <TextBlock Text="{Binding Name}"/>
-                          <TextBlock Style="{StaticResource Hint}" Text="{Binding Detail}"
-                                     Visibility="{Binding HasDetail, Converter={StaticResource Visible}}"/>
-                        </StackPanel>
-                        <TextBlock Grid.Column="2" Text="{Binding State}" Foreground="{Binding Color}" FontWeight="SemiBold" Margin="10,0,0,0"/>
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </StackPanel>
-            </Border>
-
-            <WrapPanel Visibility="{Binding ShowStatus, Converter={StaticResource Visible}}">
-              <Button Style="{StaticResource Primary}" Content="_בדיקת סינון התמונות עכשיו" Command="{Binding VerifyCommand}"/>
-              <Button Content="_חיבור מחדש" Command="{Binding ReconnectCommand}"/>
-              <Button Content="_ייצוא דוח אבחון" Command="{Binding ExportCommand}"/>
-            </WrapPanel>
-
-            <TextBlock Margin="0,6,0,0" Text="{Binding Message}" Visibility="{Binding HasMessage, Converter={StaticResource Visible}}"
-                       AutomationProperties.LiveSetting="Polite" FontWeight="SemiBold"/>
-          </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-
-      <!-- ============================================== support -->
-      <TabItem Header="_תמיכה" AutomationProperties.Name="תמיכה">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
-          <StackPanel Margin="4">
-            <Border Style="{StaticResource CardBorder}">
-              <StackPanel>
-                <TextBlock Style="{StaticResource Title}" Text="פנייה לתמיכה"/>
-                <TextBlock Margin="0,8,0,4">
-                  <Run Text="מספר התמיכה בוואטסאפ: "/><Run Text="{Binding SupportNumberDisplay, Mode=OneWay}" FontWeight="SemiBold"/>
-                </TextBlock>
-                <TextBlock Style="{StaticResource Hint}" Text="{Binding WhatsAppState}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="{Binding EmailNote}" Margin="0,0,0,10"/>
-                <Label Content="_ההודעה (אפשר לערוך)" Target="{Binding ElementName=SupportBox}" Padding="0"/>
-                <TextBox x:Name="SupportBox" Text="{Binding SupportMessage, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
-                         TextWrapping="Wrap" MinHeight="120" MaxLength="1500" VerticalScrollBarVisibility="Auto"
-                         AutomationProperties.Name="הודעה לתמיכה"/>
-                <CheckBox IsChecked="{Binding AttachReport}" Margin="0,0,0,12">
-                  <TextBlock Text="לשמור גם דוח אבחון (בלי קוד הפעלה, מפתחות או היסטוריית גלישה) כדי שאצרף אותו בעצמי"/>
-                </CheckBox>
-                <WrapPanel>
-                  <Button Style="{StaticResource Primary}" Content="_פתיחת WhatsApp עם ההודעה" Command="{Binding WhatsAppCommand}"/>
-                  <Button Content="_שליחה במייל" Command="{Binding EmailCommand}"/>
-                </WrapPanel>
-                <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
-                           Text="שום הודעה לא נשלחת אוטומטית: WhatsApp או תוכנת הדואר נפתחים עם הטקסט, ואתם בוחרים אם לשלוח."/>
-              </StackPanel>
-            </Border>
-            <TextBlock Margin="0,6,0,0" Text="{Binding Message}" Visibility="{Binding HasMessage, Converter={StaticResource Visible}}"/>
-          </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-
-      <!-- ============================================== about -->
-      <TabItem Header="_אודות" AutomationProperties.Name="אודות">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
-          <StackPanel Margin="4">
-            <Border Style="{StaticResource CardBorder}">
-              <StackPanel>
-                <TextBlock Style="{StaticResource Title}" Text="FilterPhone למחשב"/>
-                <TextBlock Margin="0,6,0,0" Text="{Binding Version}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="{Binding WindowsLine}"/>
-                <WrapPanel Margin="0,12,0,0">
-                  <Button Content="_בדיקת עדכונים" Command="{Binding UpdateCommand}"/>
-                </WrapPanel>
-                <TextBlock Style="{StaticResource Hint}" Text="{Binding UpdateState}"/>
-              </StackPanel>
-            </Border>
-            <Border Style="{StaticResource CardBorder}">
-              <StackPanel>
-                <TextBlock FontWeight="SemiBold" FontSize="16" Text="פרטיות"/>
-                <TextBlock Margin="0,6,0,0" Text="הגלישה עוברת דרך שרת הסינון של FilterPhone כדי לסנן אתרים ותמונות, כמו באפליקציה לטלפון. התוכנה במחשב לא אוספת ולא שולחת סיסמאות, היסטוריית גלישה, תוכן דפים או קבצים. לשרת נשלח דיווח טכני קצר: מצב החיבור, גרסת התוכנה ותוצאות הבדיקות."/>
-                <TextBlock Margin="0,8,0,0" Text="רכיבים: WireGuard for Windows (WireGuard LLC), ‏.NET (Microsoft), ‏BouncyCastle. הרישיונות נמצאים בקובץ THIRD-PARTY-NOTICES.txt בתיקיית ההתקנה."/>
-              </StackPanel>
-            </Border>
-          </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-    </TabControl>
+    <Grid>
+      <!-- The protection service does not answer. -->
+      <Border Style="{StaticResource ErrorCard}" Margin="20" VerticalAlignment="Top"
+              Visibility="{Binding ServiceUnreachable, Converter={StaticResource Visible}}">
+        <TextBlock Text="{Binding ServiceProblem}" Foreground="{StaticResource Bad}" FontWeight="SemiBold"/>
+      </Border>
+      <TextBlock Style="{StaticResource Hint}" Text="מתחבר לשירות ההגנה…" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Visibility="{Binding ShowLoading, Converter={StaticResource Visible}}"/>
+      <v:WelcomeView Visibility="{Binding ShowWelcome, Converter={StaticResource Visible}}"/>
+      <Border Visibility="{Binding ShowRegister, Converter={StaticResource Visible}}">
+        <v:RegisterView DataContext="{Binding Registration}"/>
+      </Border>
+      <v:ActivationView Visibility="{Binding ShowActivation, Converter={StaticResource Visible}}"/>
+      <v:PendingView Visibility="{Binding ShowPending, Converter={StaticResource Visible}}"/>
+      <v:StatusView Visibility="{Binding ShowStatus, Converter={StaticResource Visible}}"/>
+    </Grid>
   </DockPanel>
 </Window>
