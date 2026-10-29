@@ -1,7 +1,7 @@
 ; FilterPhone Desktop installer (Inno Setup 6).
 ; Installs the protection service (LocalSystem), the user UI and the verified official WireGuard MSI,
 ; records the administrator's informed consent, and configures service auto-start and recovery.
-; Producing the installer never requires secrets; the activation code is entered at first run, not here.
+; Producing the installer never requires secrets; joining the service (or an activation code) happens at first run.
 
 #ifndef AppVersion
   #define AppVersion "0.9.0"
@@ -83,8 +83,8 @@ Filename: "{sys}\sc.exe"; Parameters: "description {#ServiceName} ""שירות �
 Filename: "{sys}\sc.exe"; Parameters: "failure {#ServiceName} reset= 86400 actions= restart/5000/restart/15000/restart/60000"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "failureflag {#ServiceName} 1"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "start {#ServiceName}"; Flags: runhidden waituntilterminated
-; 3. Offer to open the app so the user can enter their activation code.
-Filename: "{app}\{#AppExe}"; Description: "פתיחת FilterPhone והזנת קוד הפעלה"; Flags: postinstall nowait skipifsilent
+; 3. Offer to open the app so the user can join the service (or enter an activation code).
+Filename: "{app}\{#AppExe}"; Description: "פתיחת FilterPhone והצטרפות לשירות"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
 ; Stop and remove our service, then restore everything our service changed (CA, AppLocker, network lock).
@@ -122,7 +122,7 @@ begin
   ConsentPage := CreateInputOptionPage(wpLicense,
     'הרשאות ואבטחה', 'FilterPhone מבקש את האישורים הבאים כדי להגן על המחשב',
     'סמנו את האישורים. בלי שלושת הראשונים ההגנה לא תהיה מלאה. כל אחד מהם מתבטל בהסרת התוכנה.' + #13#10 +
-    'חשוב: אחרי הפעלת המחשב בקוד הפעלה, הסרת התוכנה תדרוש קוד הסרה שמתקבל מ-FilterPhone.',
+    'חשוב: אחרי שהמחשב מופעל, הסרת התוכנה תדרוש קוד הסרה שמתקבל מ-FilterPhone.',
     False, False);
   ConsentPage.Add(
     'התקנת תעודת הסינון של FilterPhone במאגר התעודות של המחשב. התעודה מאפשרת לסנן תמונות באתרים ' +
