@@ -10,6 +10,7 @@ using FilterPhone.Core.Diagnostics;
 using FilterPhone.Core.Network;
 using FilterPhone.Core.Removal;
 using FilterPhone.Core.Status;
+using FilterPhone.Core.Update;
 using FilterPhone.Core.Trust;
 using FilterPhone.Core.Util;
 using FilterPhone.Core.Verification;
@@ -49,7 +50,8 @@ internal sealed class ProtectionEngine(
     ILogger<ProtectionEngine> log,
     TunnelController tunnel,
     TrustStore trust,
-    ChromeOnlyEnforcer chromeOnly) : BackgroundService
+    ChromeOnlyEnforcer chromeOnly,
+    UpdateStatus updateStatus) : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan HandshakeFresh = TimeSpan.FromSeconds(180);
@@ -1251,6 +1253,8 @@ internal sealed class ProtectionEngine(
             WindowsBuild = WindowsInfo.Build,
             SupportWhatsApp = _state.SupportWhatsApp.Length > 0 ? _state.SupportWhatsApp : ProductConfig.Current.SupportWhatsApp,
             SupportEmailConfigured = ProductConfig.Current.SupportEmail.Length > 0,
+            Update = updateStatus.Read().State,
+            UpdateVersion = updateStatus.Read().Version,
             Registration = reg is null ? null : new RegistrationInfo
             {
                 Status = reg.Status,

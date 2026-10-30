@@ -253,7 +253,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     // The version is wrapped in left-to-right marks so "0.9.0-ci.12" is not reordered inside the Hebrew line.
     public string Version => "גרסה \u200E" + ProductConfig.Version + "\u200E";
     public string WindowsLine => _snapshot is null ? string.Empty : $"Windows {_snapshot.WindowsEdition} · build {_snapshot.WindowsBuild}";
-    public string UpdateState { get; private set; } = Updater.Configured ? string.Empty : "בדיקת עדכונים אוטומטית לא הוגדרה בגרסה זו. עדכון נעשה בהרצת תוכנת ההתקנה החדשה.";
+    private string? _updateMessage;
+
+    /// <summary>What the automatic updater is doing, from the service (with a transient message after "check now").</summary>
+    public string UpdateState => _updateMessage ?? Texts.UpdateStatus(_snapshot?.Update ?? Core.Update.UpdateState.Unknown, _snapshot?.UpdateVersion);
 
     // ------------------------------------------------------------------ actions
 
@@ -522,34 +525,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task CheckUpdateAsync()
     {
-        if (!Updater.Configured)
-        {
-            return;
-        }
+        // The service checks and installs updates on its own; this just asks it to check right now.
+        _updateMessage = "בודק עדכונים…";
+        Changed(nameof(UpdateState));
         try
         {
-            UpdateState = "בודק עדכונים…";
-            Changed(nameof(UpdateState));
-            var update = await Updater.CheckAsync(CancellationToken.None);
-            if (update is null)
+            var r = await ServiceClient.SendAsync(IpcProtocol.Commands.CheckUpdate, null, TimeSpan.FromSeconds(30));
+            if (r.Ok)
             {
-                UpdateState = "מותקנת הגרסה העדכנית.";
+                Apply(ServiceClient.ParseSnapshot(r.Data));
             }
-            else if (MessageBox.Show($"קיימת גרסה חדשה ({update.Version}). להוריד ולהתקין? Windows יבקש אישור מנהל.",
-                         "עדכון FilterPhone", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No,
-                         MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign) == MessageBoxResult.Yes)
-            {
-                UpdateState = await Updater.DownloadVerifyAndStartAsync(update, CancellationToken.None)
-                    ? "תוכנת ההתקנה של הגרסה החדשה נפתחה."
-                    : "העדכון לא עבר את בדיקת החתימה או התקינות ולכן לא הותקן.";
-            }
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            await RefreshAsync();
         }
-        catch (Exception e) when (e is System.Net.Http.HttpRequestException or IOException or OperationCanceledException
-                                      or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException)
+        catch (Exception e) when (e is ServiceUnavailableException or IOException or OperationCanceledException or InvalidDataException)
         {
-            UpdateState = "בדיקת העדכונים נכשלה. נסו שוב מאוחר יותר.";
+            _updateMessage = Texts.ServiceDown;
         }
-        Changed(nameof(UpdateState));
+        finally
+        {
+            _updateMessage = null;
+            Changed(nameof(UpdateState));
+        }
     }
 
     // ------------------------------------------------------------------ helpers
@@ -591,7 +588,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                      nameof(WindowsLine), nameof(ServerMessage), nameof(HasServerMessage), nameof(StateIcon), nameof(StateTint),
                      nameof(LevelLine), nameof(IsRejected), nameof(IsWaiting), nameof(PendingTitle), nameof(PendingMessage),
                      nameof(PendingWho), nameof(PendingLevel), nameof(PendingOptions), nameof(HasPendingOptions),
-                     nameof(PendingNote), nameof(HasPendingNote), nameof(PendingChecked),
+                     nameof(PendingNote), nameof(HasPendingNote), nameof(PendingChecked), nameof(UpdateState),
                  })
         {
             Changed(p);

@@ -65,9 +65,12 @@ builder.Services.Configure<HostOptions>(o =>
 builder.Services.AddSingleton<TunnelController>();
 builder.Services.AddSingleton<TrustStore>();
 builder.Services.AddSingleton<ChromeOnlyEnforcer>();
+builder.Services.AddSingleton<FilterPhone.Service.Infrastructure.UpdateStatus>();
+builder.Services.AddSingleton<FilterPhone.Service.Update.UpdateManager>();
 builder.Services.AddSingleton<ProtectionEngine>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ProtectionEngine>());
 builder.Services.AddHostedService<FilterPhone.Service.Policy.BrowserWatchdog>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FilterPhone.Service.Update.UpdateManager>());
 builder.Services.AddHostedService<PipeServer>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

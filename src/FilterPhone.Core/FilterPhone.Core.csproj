@@ -20,6 +20,11 @@
     <FpSupportWhatsApp Condition="'$(FpSupportWhatsApp)' == ''">972527186881</FpSupportWhatsApp>
     <FpSupportEmail Condition="'$(FpSupportEmail)' == ''">ywldyld@gmail.com</FpSupportEmail>
     <FpChannel Condition="'$(FpChannel)' == ''">development</FpChannel>
+    <!-- Automatic updates: the HTTPS feed (empty = the GitHub "latest release" default) and the Authenticode
+         publisher the downloaded installer must be signed by before it is installed silently. Set FpUpdatePublisher
+         only once the installer is code-signed; until then updates are detected and shown, never run automatically. -->
+    <FpUpdateManifestUrl Condition="'$(FpUpdateManifestUrl)' == ''"></FpUpdateManifestUrl>
+    <FpUpdatePublisher Condition="'$(FpUpdatePublisher)' == ''"></FpUpdatePublisher>
   </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="FilterPhone.ApiBaseUrl" Value="$(FpApiBaseUrl)" />
@@ -27,6 +32,8 @@
     <AssemblyMetadata Include="FilterPhone.SupportEmail" Value="$(FpSupportEmail)" />
     <AssemblyMetadata Include="FilterPhone.ExpectedCaSha256" Value="$(FpExpectedCaSha256)" />
     <AssemblyMetadata Include="FilterPhone.Channel" Value="$(FpChannel)" />
+    <AssemblyMetadata Include="FilterPhone.UpdateManifestUrl" Value="$(FpUpdateManifestUrl)" />
+    <AssemblyMetadata Include="FilterPhone.UpdatePublisher" Value="$(FpUpdatePublisher)" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FilterPhone.Core.Tests" />

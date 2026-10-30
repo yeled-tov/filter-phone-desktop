@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
@@ -32,6 +33,19 @@ public sealed partial class ProductConfig
     public static string Version =>
         typeof(ProductConfig).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             .Split('+')[0] ?? "0.0.0";
+
+    /// <summary>Where the update feed lives (overridable at build time); defaults to the GitHub "latest release" asset.</summary>
+    public const string DefaultUpdateManifestUrl =
+        "https://github.com/yeled-tov/filter-phone-desktop/releases/latest/download/update.json";
+
+    public static string UpdateManifestUrl => MetaOf("UpdateManifestUrl") is { Length: > 0 } m ? m : DefaultUpdateManifestUrl;
+
+    /// <summary>The Authenticode publisher the downloaded installer must be signed by before it is installed
+    /// automatically. Empty on unsigned builds: an update is then detected and shown, but never run silently.</summary>
+    public static string UpdatePublisher => MetaOf("UpdatePublisher");
+
+    private static string MetaOf(string key) => typeof(ProductConfig).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(a => a.Key == "FilterPhone." + key)?.Value?.Trim() ?? string.Empty;
 
     internal static ProductConfig FromAssembly(Assembly assembly)
     {

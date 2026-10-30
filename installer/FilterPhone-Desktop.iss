@@ -210,9 +210,15 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
 begin
   if CurStep = ssInstall then
   begin
+    // Upgrade in place: stop the running service first so its files can be replaced (fresh install: a no-op).
+    // This makes the automatic silent upgrade work without a reboot. The [Run] section starts it again.
+    Exec(ExpandConstant('{sys}\sc.exe'), 'stop {#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(1500);
     WriteConsent();
     if not EditionOk then
       MsgBox('זוהתה מהדורת Windows Home. הסינון ברשת (VPN, חסימת גלישה, סינון תמונות) יפעל במלואו. ' +

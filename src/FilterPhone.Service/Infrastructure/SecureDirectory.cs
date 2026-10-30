@@ -22,6 +22,7 @@ internal static class SecureDirectory
         Ensure(Paths.Logs, usersCanRead: false);
         Ensure(Paths.Policy, usersCanRead: true);
         Ensure(Paths.Probe, usersCanRead: true);
+        Ensure(Paths.Updates, usersCanRead: false);
     }
 
     private static void EnsureRoot(string path)

@@ -72,6 +72,8 @@ public sealed record ProtectionSnapshot
     public string SupportWhatsApp { get; init; } = string.Empty;
     public bool SupportEmailConfigured { get; init; }
     public RegistrationInfo? Registration { get; init; }
+    public FilterPhone.Core.Update.UpdateState Update { get; init; } = FilterPhone.Core.Update.UpdateState.Unknown;
+    public string? UpdateVersion { get; init; }
     public DateTimeOffset GeneratedAt { get; init; } = DateTimeOffset.UtcNow;
 }
 

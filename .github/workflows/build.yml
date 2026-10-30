@@ -295,12 +295,20 @@ jobs:
           path: dist
       - name: Verify the release asset is present
         run: test -s dist/FilterPhone-Desktop-Setup.exe || { echo "Installer missing"; exit 1; }
+      - name: Write the auto-update feed (update.json)
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sha="$(sha256sum dist/FilterPhone-Desktop-Setup.exe | cut -d' ' -f1)"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/FilterPhone-Desktop-Setup.exe"
+          printf '{"version":"%s","url":"%s","sha256":"%s"}\n' "$version" "$url" "$sha" > dist/update.json
+          cat dist/update.json
       - name: Publish the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/FilterPhone-Desktop-Setup.exe
             dist/FilterPhone-Desktop-Setup.exe.sha256
+            dist/update.json
             dist/sbom.cdx.json
           fail_on_unmatched_files: true
           body: |

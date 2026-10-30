@@ -18,7 +18,7 @@ namespace FilterPhone.Service.Ipc;
 /// first-time enrolment, verification, reconnect and a redacted diagnostic report. Every request is parsed
 /// strictly, size-limited and rate-limited; file paths are never accepted from the client.
 /// </summary>
-internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngine engine) : BackgroundService
+internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngine engine, FilterPhone.Service.Update.UpdateManager updates) : BackgroundService
 {
     private const int MaxInstances = 4;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -216,6 +216,11 @@ internal sealed partial class PipeServer(ILogger<PipeServer> log, ProtectionEngi
             case IpcProtocol.Commands.CancelRegistration:
                 IpcProtocol.RejectUnknownArgs(req.Args);
                 await engine.CancelRegistrationAsync(ct).ConfigureAwait(false);
+                return Ok(req, Snapshot(engine.Snapshot));
+
+            case IpcProtocol.Commands.CheckUpdate:
+                IpcProtocol.RejectUnknownArgs(req.Args);
+                updates.CheckNow();
                 return Ok(req, Snapshot(engine.Snapshot));
 
             case IpcProtocol.Commands.AuthorizeRemoval:

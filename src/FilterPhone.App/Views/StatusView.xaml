@@ -109,10 +109,11 @@
               <TextBlock Style="{StaticResource Title}" Text="FilterPhone למחשב"/>
               <TextBlock Margin="0,6,0,0" Text="{Binding Version}"/>
               <TextBlock Style="{StaticResource Hint}" Text="{Binding WindowsLine}"/>
+              <TextBlock Margin="0,10,0,0" Text="FilterPhone מתעדכן לבד: הוא בודק אם יש גרסה חדשה, מוריד אותה ברקע ומתקין אותה אוטומטית — בלי צורך להוריד מהאתר."/>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" Text="{Binding UpdateState}" AutomationProperties.LiveSetting="Polite"/>
               <WrapPanel Margin="0,12,0,0">
-                <Button Content="בדיקת עדכונים" Command="{Binding UpdateCommand}"/>
+                <Button Content="בדיקת עדכונים עכשיו" Command="{Binding UpdateCommand}"/>
               </WrapPanel>
-              <TextBlock Style="{StaticResource Hint}" Text="{Binding UpdateState}"/>
             </StackPanel>
           </Border>
           <Border Style="{StaticResource CardBorder}">

@@ -15,6 +15,7 @@ internal static class Paths
     public static string Logs => Path.Combine(DataRoot, "Logs");
     public static string Policy => Path.Combine(DataRoot, "Policy");      // readable by users (default associations)
     public static string Probe => Path.Combine(DataRoot, "Probe");        // readable/executable by users (launch probe)
+    public static string Updates => Path.Combine(DataRoot, "Updates");    // downloaded installers (SYSTEM/Administrators only)
     public static string StateFile => Path.Combine(DataRoot, "state.json");
 
     public static string TunnelConfig => Path.Combine(Tunnel, Core.ProductConfig.TunnelName + ".conf.dpapi");

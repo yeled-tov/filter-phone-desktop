@@ -111,6 +111,20 @@ public static class Texts
         _ => serverMessage ?? "ההפעלה לא הושלמה. נסו שוב או פנו לתמיכה.",
     };
 
+    public static string UpdateStatus(Core.Update.UpdateState state, string? version) => state switch
+    {
+        Core.Update.UpdateState.UpToDate => "מותקנת הגרסה העדכנית. FilterPhone בודק עדכונים לבד ומתקין אותם ברקע.",
+        Core.Update.UpdateState.Checking => "בודק אם יש עדכון…",
+        Core.Update.UpdateState.Downloading => version is { Length: > 0 } v ? $"מוריד את גרסה {v} ברקע…" : "מוריד עדכון ברקע…",
+        Core.Update.UpdateState.Installing => version is { Length: > 0 } v ? $"מתקין את גרסה {v} — המחשב יתעדכן לבד, בלי לשים לב." : "מתקין עדכון ברקע…",
+        Core.Update.UpdateState.Available => version is { Length: > 0 } v
+            ? $"יש גרסה חדשה ({v}). בגרסה הזו ההתקנה האוטומטית כבויה (הקובץ לא חתום) — הורידו אותה מדף ההורדות."
+            : "יש גרסה חדשה. הורידו אותה מדף ההורדות.",
+        Core.Update.UpdateState.Error => "בדיקת העדכונים לא הצליחה כרגע. ננסה שוב אוטומטית.",
+        Core.Update.UpdateState.Disabled => "בדיקת עדכונים אוטומטית לא הוגדרה בגרסה זו.",
+        _ => "בודק עדכונים אוטומטית ברקע.",
+    };
+
     public static string RegisterError(string? code, string? serverMessage) => code switch
     {
         "bad_request" => serverMessage ?? "חלק מהפרטים לא תקינים. בדקו ונסו שוב.",

@@ -34,9 +34,11 @@ public static partial class IpcProtocol
         public const string Register = "register";
         /// <summary>Withdraws a registration that was not approved yet.</summary>
         public const string CancelRegistration = "cancel_registration";
+        /// <summary>Asks the service to check for an update now (the automatic check runs on its own schedule too).</summary>
+        public const string CheckUpdate = "check_update";
 
         public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
-            { Status, Enroll, Verify, Reconnect, Diagnostics, AuthorizeRemoval, Catalog, Register, CancelRegistration };
+            { Status, Enroll, Verify, Reconnect, Diagnostics, AuthorizeRemoval, Catalog, Register, CancelRegistration, CheckUpdate };
     }
 
     public static class Errors
