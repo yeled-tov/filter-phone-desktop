@@ -3,6 +3,7 @@ using FilterPhone.Service.Infrastructure;
 using FilterPhone.Service.Policy;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Win32;
+using System.IO;
 
 namespace FilterPhone.Windows.Tests;
 
@@ -15,7 +16,9 @@ public sealed class DesktopExtrasTests : IDisposable
 {
     private readonly PolicyValue _copilot = MachinePolicies.DesktopExtras["block_copilot"][0];
 
-    public DesktopExtrasTests() => SecureDirectory.EnsureAll();
+    // The enforcer persists state to ProgramData\FilterPhone; a plain directory is enough for the test
+    // (SecureDirectory.EnsureAll sets ownership, which the CI account cannot do).
+    public DesktopExtrasTests() => Directory.CreateDirectory(Paths.DataRoot);
 
     public void Dispose()
     {
