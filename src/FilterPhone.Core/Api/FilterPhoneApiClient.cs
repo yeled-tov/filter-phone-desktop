@@ -247,7 +247,10 @@ public sealed partial class FilterPhoneApiClient : IDisposable
         if (r.TryGetProperty("windows", out var w) && w.ValueKind == JsonValueKind.Object)
         {
             // A missing or malformed value never weakens protection: it keeps the restriction on.
-            controls = new DesktopControls(Json.Bool(w, "chrome_only") ?? true, Json.Bool(w, "block_store") ?? true);
+            // chrome_only / block_store default to on when missing (never weaken those); the extra toggles are
+            // opt-in, so a missing value means off.
+            var extras = DesktopControls.ExtraNames.ToDictionary(n => n, n => Json.Bool(w, n) ?? false, StringComparer.Ordinal);
+            controls = new DesktopControls(Json.Bool(w, "chrome_only") ?? true, Json.Bool(w, "block_store") ?? true, extras);
             var key = Json.String(w, "removal_key");
             removalKey = Removal.RemovalCode.IsValidKey(key) ? key : null;
         }

@@ -680,6 +680,8 @@ internal sealed class ProtectionEngine(
 
     private async Task EnsureChromeOnlyAsync(DateTimeOffset now, CancellationToken ct)
     {
+        // Optional Windows blocks the dashboard turned on (Copilot, widgets, Spotlight, web search, USB).
+        DesktopExtrasEnforcer.Apply(_state, log);
         Set(Layers.ChromePolicy, ChromeOnlyEnforcer.MachinePoliciesApplied() ? CheckState.Ok : CheckState.Pending,
             ChromeOnlyEnforcer.MachinePoliciesApplied() ? "applied" : "not_applied");
         if (!_policyBackoff.CanAttempt(now))

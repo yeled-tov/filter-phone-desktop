@@ -178,7 +178,7 @@ public sealed class BackendContractTests : IDisposable
             return;
         }
 
-        Assert.Equal(new DesktopControls(true, true), hb.Controls);
+        Assert.True(hb.Controls!.ChromeOnly && hb.Controls.BlockStore);
         Assert.NotNull(hb.RemovalKey);
         issue.EnsureSuccessStatusCode();
         var code = (await issue.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString();
@@ -188,7 +188,8 @@ public sealed class BackendContractTests : IDisposable
         var patch = await admin.PatchAsJsonAsync($"/v1/admin/devices/{r.DeviceId}", new { desktop = new { block_store = false } });
         patch.EnsureSuccessStatusCode();
         var after = await _client.HeartbeatAsync(r.Token, report with { WantRemovalKey = false }, default);
-        Assert.Equal(new DesktopControls(ChromeOnly: true, BlockStore: false), after.Controls);
+        Assert.True(after.Controls!.ChromeOnly);
+        Assert.False(after.Controls.BlockStore);
         Assert.Null(after.RemovalKey);                     // sent only when the PC asks for it
 
         var detail = await admin.GetStringAsync($"/v1/admin/devices/{r.DeviceId}");

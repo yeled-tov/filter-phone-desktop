@@ -40,6 +40,7 @@ internal static class Cleanup
             () => new TrustStore(loggers.CreateLogger<TrustStore>()).Remove(state.TrustedCaThumbprints));
         failures += await StepAsync(log, "browser restriction",
             () => new ChromeOnlyEnforcer(loggers.CreateLogger<ChromeOnlyEnforcer>()).RemoveAsync(state, CancellationToken.None)).ConfigureAwait(false);
+        failures += Step(log, "optional Windows blocks", () => DesktopExtrasEnforcer.RemoveAll(state));
         failures += Step(log, "secrets and state", () =>
         {
             SecretStore.DeleteAll();

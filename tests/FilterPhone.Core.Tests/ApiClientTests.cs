@@ -207,7 +207,8 @@ public class ApiClientTests
         const string key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
         var handler = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
             "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"," +
-            "\"windows\": {\"chrome_only\": true, \"block_store\": false, \"removal_key\": \"" + key + "\"}}"));
+            "\"windows\": {\"chrome_only\": true, \"block_store\": false, \"block_copilot\": true, " +
+            "\"removal_key\": \"" + key + "\"}}"));
         using var client = new FilterPhoneApiClient(Base, handler: handler);
         var r = await client.HeartbeatAsync("tok", new HeartbeatReport
         {
@@ -218,7 +219,10 @@ public class ApiClientTests
             Windows = new WindowsReport("Protected", "Professional", "22631", 1_700_000_000,
                 new Dictionary<string, string> { ["kill_switch"] = "ok", ["store_block"] = "unsupported", ["secret"] = "x" }),
         }, default);
-        Assert.Equal(new DesktopControls(ChromeOnly: true, BlockStore: false), r.Controls);
+        Assert.True(r.Controls!.ChromeOnly);
+        Assert.False(r.Controls.BlockStore);
+        Assert.True(r.Controls.Extra("block_copilot"));
+        Assert.False(r.Controls.Extra("block_removable"));
         Assert.Equal(key, r.RemovalKey);
         Assert.DoesNotContain(key, r.ToString(), StringComparison.Ordinal);
         using var doc = JsonDocument.Parse(handler.Calls[0].Body!);
@@ -238,7 +242,8 @@ public class ApiClientTests
             "\"windows\": {\"chrome_only\": \"no\", \"removal_key\": \"short\"}}"));
         using var client = new FilterPhoneApiClient(Base, handler: handler);
         var r = await client.HeartbeatAsync("tok", new HeartbeatReport { AppVersion = "1", DeviceUid = "0123456789abcdef", VpnState = "UP" }, default);
-        Assert.Equal(new DesktopControls(true, true), r.Controls);     // malformed values never weaken protection
+        Assert.True(r.Controls!.ChromeOnly && r.Controls.BlockStore);   // malformed values never weaken protection
+        Assert.All(DesktopControls.ExtraNames, n => Assert.False(r.Controls.Extra(n)));
         Assert.Null(r.RemovalKey);
         using var doc = JsonDocument.Parse(handler.Calls[0].Body!);
         Assert.False(doc.RootElement.TryGetProperty("want_removal_key", out _));

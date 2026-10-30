@@ -53,10 +53,18 @@ public sealed record HeartbeatResult(string Status, int? PolicyVersion, int Inte
 }
 
 /// <summary>
-/// The dashboard's settings for a Windows PC (server: DeviceSettings.desktop). The PC applies a restriction
-/// only if its administrator also consented to it in the installer; the dashboard can turn one off or back on.
+/// The dashboard's settings for a Windows PC (server: DeviceSettings.desktop). ChromeOnly and BlockStore are
+/// applied only if the administrator also consented to them in the installer; the extra Windows toggles are
+/// optional, off by default, and the administrator turns each one on or off per computer in the dashboard.
 /// </summary>
-public sealed record DesktopControls(bool ChromeOnly, bool BlockStore);
+public sealed record DesktopControls(bool ChromeOnly, bool BlockStore, IReadOnlyDictionary<string, bool> Extras)
+{
+    /// <summary>The optional Windows-only toggles the server can send (server: catalog.DESKTOP_DEFAULTS).</summary>
+    public static readonly IReadOnlyList<string> ExtraNames =
+        ["block_copilot", "block_widgets", "block_spotlight", "block_web_search", "block_removable"];
+
+    public bool Extra(string name) => Extras.TryGetValue(name, out var on) && on;
+}
 
 /// <summary>What the PC verified, per protection layer, for the dashboard (server: heartbeat "windows").</summary>
 public sealed record WindowsReport(string Overall, string Edition, string Build, long? ProtectedSince,

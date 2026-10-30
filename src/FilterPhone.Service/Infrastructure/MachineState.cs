@@ -42,6 +42,8 @@ internal sealed class MachineState
 
     public DateTimeOffset? LastRekeyAttempt { get; set; }
     public DateTimeOffset? RemovalAuthorizedUntil { get; set; }   // set when a valid removal code was entered
+    // Original values of the optional Windows toggles, kept so each can be restored exactly when turned off.
+    public Dictionary<string, string?> DesktopExtraBackup { get; set; } = [];
     public PendingRegistration? Registration { get; set; }        // a registration waiting for the administrator
 
     private static readonly JsonSerializerOptions Options = new()

@@ -51,6 +51,37 @@ public static class MachinePolicies
         new(StoreKey, "RemoveWindowsStore", RegistryValueKind.DWord, 1),
     ];
 
+    public const string CopilotKey = @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot";
+    public const string DshKey = @"SOFTWARE\Policies\Microsoft\Dsh";
+    public const string CloudContentKey = @"SOFTWARE\Policies\Microsoft\Windows\CloudContent";
+    public const string ExplorerKey = @"SOFTWARE\Policies\Microsoft\Windows\Explorer";
+    public const string SearchKey = @"SOFTWARE\Policies\Microsoft\Windows\Windows Search";
+    // The "All Removable Storage classes: Deny all access" policy (a well-known device-class GUID).
+    public const string RemovableKey = @"SOFTWARE\Policies\Microsoft\Windows\RemovableStorageDevices\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}";
+
+    /// <summary>
+    /// Optional Windows-only blocks the administrator turns on per computer in the dashboard (keys match
+    /// catalog.DESKTOP_DEFAULTS). Each is a standard Group Policy registry value and fully reversible; the
+    /// service applies a group only while its toggle is on and restores the original on uninstall.
+    /// </summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<PolicyValue>> DesktopExtras { get; } =
+        new Dictionary<string, IReadOnlyList<PolicyValue>>(StringComparer.Ordinal)
+        {
+            ["block_copilot"] = [new(CopilotKey, "TurnOffWindowsCopilot", RegistryValueKind.DWord, 1)],
+            ["block_widgets"] = [new(DshKey, "AllowNewsAndInterests", RegistryValueKind.DWord, 0)],
+            ["block_spotlight"] =
+            [
+                new(CloudContentKey, "DisableWindowsSpotlightFeatures", RegistryValueKind.DWord, 1),
+                new(CloudContentKey, "DisableSpotlightCollectionOnDesktop", RegistryValueKind.DWord, 1),
+            ],
+            ["block_web_search"] =
+            [
+                new(ExplorerKey, "DisableSearchBoxSuggestions", RegistryValueKind.DWord, 1),
+                new(SearchKey, "ConnectedSearchUseWeb", RegistryValueKind.DWord, 0),
+            ],
+            ["block_removable"] = [new(RemovableKey, "Deny_All", RegistryValueKind.DWord, 1)],
+        };
+
     /// <summary>DISM default-associations file mapping web links and pages to Google Chrome.</summary>
     public static XDocument DefaultAssociations() => new(new XDeclaration("1.0", "UTF-8", null),
         new XElement("DefaultAssociations",
