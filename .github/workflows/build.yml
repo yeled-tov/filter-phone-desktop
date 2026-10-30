@@ -1,0 +1,318 @@
+name: Build FilterPhone Desktop
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "ccr-*"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "installer/**"
+      - "*.slnx"
+      - "Directory.*.props"
+      - "global.json"
+      - ".config/**"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "installer/**"
+      - ".github/workflows/build.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  # The exact commit of yeled-tov/filterphone the API contract tests run against.
+  FILTERPHONE_BACKEND_COMMIT: "29e7dc0f3acf1a501a0dad2ffa35f811c348be49"
+  WIREGUARD_VERSION: "1.1.1"
+  WIREGUARD_SHA256: "7bfed60ad61b785c914b38b61555a975488e1d3ec472dbfb2fcdf498fca75242"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $v = $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            $v = "0.9.0-ci.$($env:GITHUB_RUN_NUMBER)"
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Version: $v"
+
+      - name: Restore (locked)
+        run: dotnet restore FilterPhone.Desktop.slnx --locked-mode
+
+      - name: Verify formatting
+        run: dotnet format FilterPhone.Desktop.slnx --verify-no-changes --no-restore
+
+      - name: Build (warnings are errors)
+        run: >
+          dotnet build FilterPhone.Desktop.slnx -c Release --no-restore
+          -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
+
+      - name: Unit tests (Core, all OS)
+        run: >
+          dotnet test tests/FilterPhone.Core.Tests -c Release --no-build
+          --filter "Category!=Contract" --logger "trx;LogFileName=core.trx"
+          --results-directory artifacts/test-results
+
+      - name: UI screenshots (every page rendered with sample data; fails on binding errors)
+        shell: pwsh
+        env:
+          FP_SCREENS_DIR: ${{ github.workspace }}/artifacts/screens
+        run: >
+          dotnet test tests/FilterPhone.App.Tests -c Release --no-build
+          --logger "trx;LogFileName=app.trx" --results-directory artifacts/test-results
+
+      - name: Upload UI screenshots
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screens
+          path: artifacts/screens/*.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      # ----- Contract tests against the real FilterPhone backend code -----
+      - name: Check out the FilterPhone backend (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: yeled-tov/filterphone
+          ref: ${{ env.FILTERPHONE_BACKEND_COMMIT }}
+          path: backend
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the backend contract harness dependencies
+        shell: pwsh
+        run: python -m pip install --quiet fastapi "uvicorn[standard]" pydantic argon2-cffi "redis>=5" fakeredis pillow segno cryptography numpy
+
+      # The harness and the contract tests run in one step so the harness is guaranteed alive, and we poll
+      # the real HTTP port (not just the info file) so the server is actually listening before testing.
+      - name: Contract tests against the real backend API
+        shell: pwsh
+        run: |
+          $info = "$env:RUNNER_TEMP\contract.json"
+          if (Test-Path $info) { Remove-Item $info }
+          $harness = Start-Process -FilePath python -PassThru `
+            -ArgumentList @('-I', "$PWD\tests\contract\backend_harness.py", "$PWD\backend\server", '8765', $info) `
+            -RedirectStandardOutput "$env:RUNNER_TEMP\harness.out" -RedirectStandardError "$env:RUNNER_TEMP\harness.err"
+          try {
+            $up = $false
+            for ($i = 0; $i -lt 60 -and -not $harness.HasExited; $i++) {
+              try {
+                if ((Invoke-WebRequest -Uri 'http://127.0.0.1:8765/health' -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) {
+                  $up = $true; break
+                }
+              } catch { Start-Sleep -Seconds 1 }
+            }
+            if (-not $up) {
+              Write-Host "---- harness stdout ----"; if (Test-Path "$env:RUNNER_TEMP\harness.out") { Get-Content "$env:RUNNER_TEMP\harness.out" }
+              Write-Host "---- harness stderr ----"; if (Test-Path "$env:RUNNER_TEMP\harness.err") { Get-Content "$env:RUNNER_TEMP\harness.err" }
+              throw "Backend contract harness did not become healthy."
+            }
+            Write-Host "Backend contract harness is healthy."
+            $env:FP_CONTRACT_INFO = $info
+            dotnet test tests/FilterPhone.Core.Tests -c Release --no-build `
+              --filter "Category=Contract" --logger "trx;LogFileName=contract.trx" --results-directory artifacts/test-results
+            if ($LASTEXITCODE -ne 0) { throw "Contract tests failed." }
+          }
+          finally {
+            if (-not $harness.HasExited) { Stop-Process -Id $harness.Id -Force }
+          }
+
+      # ----- Windows platform tests (elevated: WFP, DPAPI, AppLocker, trust store) -----
+      - name: Create a standard test account for AppLocker evaluation
+        shell: pwsh
+        run: |
+          $pw = ConvertTo-SecureString ([System.Guid]::NewGuid().ToString() + 'aA1!') -AsPlainText -Force
+          New-LocalUser -Name 'fp-ci-user' -Password $pw -AccountNeverExpires -PasswordNeverExpires | Out-Null
+          "FP_TEST_STANDARD_USER=$env:COMPUTERNAME\fp-ci-user" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install Google Chrome (for Chrome-only policy evaluation)
+        shell: pwsh
+        run: choco install googlechrome --yes --no-progress --ignore-checksums
+
+      - name: Windows platform tests (elevated)
+        shell: pwsh
+        run: >
+          dotnet test tests/FilterPhone.Windows.Tests -c Release --no-build
+          --logger "trx;LogFileName=windows.trx" --results-directory artifacts/test-results
+
+      # ----- Fetch and verify the official WireGuard MSI -----
+      - name: Download and verify the WireGuard MSI
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path installer/deps | Out-Null
+          $url = "https://download.wireguard.com/windows-client/wireguard-amd64-$env:WIREGUARD_VERSION.msi"
+          Invoke-WebRequest -Uri $url -OutFile installer/deps/wireguard-amd64.msi
+          $hash = (Get-FileHash installer/deps/wireguard-amd64.msi -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:WIREGUARD_SHA256) { throw "WireGuard MSI SHA-256 mismatch: got $hash" }
+          $sig = Get-AuthenticodeSignature installer/deps/wireguard-amd64.msi
+          if ($sig.Status -ne 'Valid') { throw "WireGuard MSI signature is not valid: $($sig.Status)" }
+          $subject = $sig.SignerCertificate.Subject
+          if ($subject -notmatch 'WireGuard LLC') { throw "Unexpected WireGuard MSI signer: $subject" }
+          Write-Host "WireGuard MSI verified (SHA-256 and WireGuard LLC signature)."
+
+      # ----- Publish the service and the app (self-contained) -----
+      - name: Publish components
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          dotnet publish src/FilterPhone.Service -c Release -r win-x64 --no-restore `
+            -p:Version=$v -o build/publish/service
+          dotnet publish src/FilterPhone.App -c Release -r win-x64 --no-restore `
+            -p:Version=$v -o build/publish/app
+          Copy-Item build/THIRD-PARTY-NOTICES.txt build/publish/
+
+      - name: Generate the SBOM (CycloneDX)
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          dotnet CycloneDX FilterPhone.Desktop.slnx -t -o build/publish -fn sbom.cdx.json -F Json `
+            -sn "FilterPhone Desktop" -sv "${{ steps.version.outputs.version }}"
+          if (-not (Test-Path build/publish/sbom.cdx.json)) { throw "SBOM was not generated." }
+
+      - name: Verify published outputs exist and run
+        shell: pwsh
+        run: |
+          $svc = "build/publish/service/FilterPhone.Service.exe"
+          $app = "build/publish/app/FilterPhone.exe"
+          foreach ($f in @($svc, $app)) {
+            if (-not (Test-Path $f)) { throw "Missing published output: $f" }
+          }
+          $reported = & $svc --version
+          Write-Host "Service reports version: $reported"
+          if ($reported -ne "${{ steps.version.outputs.version }}") {
+            throw "Version mismatch: service says '$reported'."
+          }
+
+      # ----- Optional code signing (only when a real certificate is supplied as a secret) -----
+      - name: Sign binaries
+        if: ${{ env.CODE_SIGN_PFX_BASE64 != '' }}
+        env:
+          CODE_SIGN_PFX_BASE64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          CODE_SIGN_PASSWORD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        shell: pwsh
+        run: |
+          $pfx = "$env:RUNNER_TEMP\sign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGN_PFX_BASE64))
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1).FullName
+          Get-ChildItem build/publish -Recurse -Include FilterPhone.exe,FilterPhone.Service.exe | ForEach-Object {
+            & $signtool sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Signing failed for $($_.FullName)" }
+          }
+          Remove-Item $pfx
+
+      # ----- Build the installer -----
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" "installer\FilterPhone-Desktop.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)." }
+          $exe = "installer\output\FilterPhone-Desktop-Setup.exe"
+          if (-not (Test-Path $exe)) { throw "Installer was not produced at $exe." }
+          (Get-Item $exe).Length | ForEach-Object { Write-Host "Installer size: $([math]::Round($_/1MB,1)) MB" }
+
+      - name: Sign the installer
+        if: ${{ env.CODE_SIGN_PFX_BASE64 != '' }}
+        env:
+          CODE_SIGN_PFX_BASE64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          CODE_SIGN_PASSWORD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        shell: pwsh
+        run: |
+          $pfx = "$env:RUNNER_TEMP\sign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGN_PFX_BASE64))
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1).FullName
+          & $signtool sign /fd SHA256 /f $pfx /p $env:CODE_SIGN_PASSWORD /tr http://timestamp.digicert.com /td SHA256 installer\output\FilterPhone-Desktop-Setup.exe
+          if ($LASTEXITCODE -ne 0) { throw "Installer signing failed." }
+          Remove-Item $pfx
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $exe = "installer\output\FilterPhone-Desktop-Setup.exe"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  FilterPhone-Desktop-Setup.exe" | Out-File -Encoding ascii installer\output\FilterPhone-Desktop-Setup.exe.sha256
+          Write-Host "SHA-256: $hash"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FilterPhone-Desktop-Setup
+          path: |
+            installer/output/FilterPhone-Desktop-Setup.exe
+            installer/output/FilterPhone-Desktop-Setup.exe.sha256
+            build/publish/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: warn
+          retention-days: 14
+
+  release:
+    needs: build
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: FilterPhone-Desktop-Setup
+          path: dist
+      - name: Verify the release asset is present
+        run: test -s dist/FilterPhone-Desktop-Setup.exe || { echo "Installer missing"; exit 1; }
+      - name: Write the auto-update feed (update.json)
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sha="$(sha256sum dist/FilterPhone-Desktop-Setup.exe | cut -d' ' -f1)"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/FilterPhone-Desktop-Setup.exe"
+          printf '{"version":"%s","url":"%s","sha256":"%s"}\n' "$version" "$url" "$sha" > dist/update.json
+          cat dist/update.json
+      - name: Publish the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/FilterPhone-Desktop-Setup.exe
+            dist/FilterPhone-Desktop-Setup.exe.sha256
+            dist/update.json
+            dist/sbom.cdx.json
+          fail_on_unmatched_files: true
+          body: |
+            FilterPhone Desktop ${{ github.ref_name }}
+
+            Download `FilterPhone-Desktop-Setup.exe` and verify its SHA-256 against
+            `FilterPhone-Desktop-Setup.exe.sha256` before running it.
