@@ -28,6 +28,9 @@ public sealed partial class ProductConfig
     public const string Platform = "windows";
     public const string TunnelName = "FilterPhone";
 
+    /// <summary>The Windows service the installer registers (installer/FilterPhone-Desktop.iss uses the same name).</summary>
+    public const string ServiceName = "FilterPhoneService";
+
     public static ProductConfig Current { get; } = FromAssembly(typeof(ProductConfig).Assembly);
 
     public static string Version =>

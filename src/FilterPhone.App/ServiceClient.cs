@@ -4,6 +4,7 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FilterPhone.Core;
 using FilterPhone.Core.Ipc;
 using FilterPhone.Core.Status;
 
@@ -57,11 +58,75 @@ public static partial class ServiceClient
         {
             throw new ServiceUnavailableException("server_unknown");
         }
-        var path = ProcessPath(pid);
-        if (path is null || !string.Equals(Path.GetFullPath(path), Path.GetFullPath(ExpectedServicePath), StringComparison.OrdinalIgnoreCase))
+        // The UI runs as a standard user, who may not open a process running as SYSTEM, so the server's image path is
+        // normally unreadable here. The Service Control Manager tells any interactive user which process our service
+        // runs in; a program squatting the pipe name is a different process.
+        if (!IsTrustedServer(pid, RunningServicePid(ProductConfig.ServiceName), ProcessPath(pid), ExpectedServicePath))
         {
             throw new ServiceUnavailableException("server_not_trusted");
         }
+    }
+
+    /// <summary>
+    /// The pipe is ours when it is served by the process the SCM reports for the FilterPhone service, or (when the
+    /// path is readable, e.g. elevated) by the installed FilterPhone.Service.exe itself.
+    /// </summary>
+    internal static bool IsTrustedServer(uint pipeServerPid, uint? servicePid, string? serverPath, string expectedPath) =>
+        (servicePid is { } sp && sp != 0 && sp == pipeServerPid)
+        || (serverPath is not null
+            && string.Equals(Path.GetFullPath(serverPath), Path.GetFullPath(expectedPath), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The process id of the service while it is running, or null (not installed, stopped, or no access).</summary>
+    internal static unsafe uint? RunningServicePid(string serviceName)
+    {
+        const uint SC_MANAGER_CONNECT = 0x0001;
+        const uint SERVICE_QUERY_STATUS = 0x0004;
+        const int SC_STATUS_PROCESS_INFO = 0;
+        const uint SERVICE_RUNNING = 4;
+        var scm = OpenSCManager(null, null, SC_MANAGER_CONNECT);
+        if (scm == IntPtr.Zero)
+        {
+            return null;
+        }
+        try
+        {
+            var service = OpenService(scm, serviceName, SERVICE_QUERY_STATUS);
+            if (service == IntPtr.Zero)
+            {
+                return null;
+            }
+            try
+            {
+                ServiceStatusProcess status;
+                if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, &status, (uint)sizeof(ServiceStatusProcess), out _))
+                {
+                    return null;
+                }
+                return status.CurrentState == SERVICE_RUNNING && status.ProcessId != 0 ? status.ProcessId : null;
+            }
+            finally
+            {
+                CloseServiceHandle(service);
+            }
+        }
+        finally
+        {
+            CloseServiceHandle(scm);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ServiceStatusProcess
+    {
+        public uint ServiceType;
+        public uint CurrentState;
+        public uint ControlsAccepted;
+        public uint Win32ExitCode;
+        public uint ServiceSpecificExitCode;
+        public uint CheckPoint;
+        public uint WaitHint;
+        public uint ProcessId;
+        public uint ServiceFlags;
     }
 
     private static unsafe string? ProcessPath(uint pid)
@@ -101,6 +166,20 @@ public static partial class ServiceClient
     [LibraryImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(IntPtr h);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "OpenSCManagerW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr OpenSCManager(string? machineName, string? databaseName, uint access);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "OpenServiceW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr OpenService(IntPtr scManager, string serviceName, uint access);
+
+    [LibraryImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static unsafe partial bool QueryServiceStatusEx(IntPtr service, int infoLevel, ServiceStatusProcess* buffer, uint bufferSize, out uint bytesNeeded);
+
+    [LibraryImport("advapi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseServiceHandle(IntPtr handle);
 
     internal static Win32Exception LastError() => new(Marshal.GetLastPInvokeError());
 }

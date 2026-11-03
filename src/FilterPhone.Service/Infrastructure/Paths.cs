@@ -31,5 +31,5 @@ internal static class Paths
 
     /// <summary>Consent recorded by the elevated installer (HKLM, administrators only).</summary>
     public const string ConsentKey = @"SOFTWARE\FilterPhone Desktop\Consent";
-    public const string ServiceName = "FilterPhoneService";
+    public const string ServiceName = FilterPhone.Core.ProductConfig.ServiceName;
 }
