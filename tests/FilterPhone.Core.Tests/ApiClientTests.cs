@@ -257,6 +257,28 @@ public class ApiClientTests
     }
 
     [Fact]
+    public async Task Heartbeat_reads_a_dashboard_pause_and_its_end_time()
+    {
+        var until = DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds();
+        var handler = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
+            "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"," +
+            $"\"paused\": {{\"until\": {until}, \"reason\": \"maintenance\"}}}}"));
+        using var client = new FilterPhoneApiClient(Base, handler: handler);
+        var r = await client.HeartbeatAsync("tok", new HeartbeatReport { AppVersion = "1", DeviceUid = "0123456789abcdef", VpnState = "UP" }, default);
+        Assert.Equal(until, r.PausedUntil!.Value.ToUnixTimeSeconds());
+        Assert.True(r.IsPaused(DateTimeOffset.UtcNow));
+        Assert.False(r.IsPaused(DateTimeOffset.UtcNow.AddHours(1)));
+
+        // No pause block => not paused (older server, or an active PC).
+        var none = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
+            "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"}"));
+        using var noneClient = new FilterPhoneApiClient(Base, handler: none);
+        var n = await noneClient.HeartbeatAsync("tok", new HeartbeatReport { AppVersion = "1", DeviceUid = "0123456789abcdef", VpnState = "UP" }, default);
+        Assert.Null(n.PausedUntil);
+        Assert.False(n.IsPaused(DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
     public async Task Rekey_validates_the_new_public_key()
     {
         var handler = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK, TestData.VpnJson()));

@@ -124,6 +124,29 @@ internal sealed class TunnelController(ILogger<TunnelController> log)
         }
     }
 
+    /// <summary>
+    /// Stops the tunnel service without removing it (used by the dashboard pause: the tunnel stands down and the
+    /// config is kept, so a later <see cref="Start"/> brings it back). A missing service is treated as stopped.
+    /// </summary>
+    public void Stop()
+    {
+        try
+        {
+            using var sc = new ServiceController(ServiceName);
+            if (sc.Status is ServiceControllerStatus.Stopped or ServiceControllerStatus.StopPending)
+            {
+                return;
+            }
+            log.LogInformation("Stopping the tunnel service");
+            sc.Stop();
+            sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(45));
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ServiceProcess.TimeoutException or Win32Exception)
+        {
+            log.LogWarning("Could not stop the tunnel service: {Message}", e.Message);
+        }
+    }
+
     /// <summary>Restart to apply a new configuration. The network lock stays in place throughout.</summary>
     public void Restart()
     {

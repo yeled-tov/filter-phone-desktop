@@ -20,6 +20,7 @@ public static class Texts
         OverallState.SetupIncomplete => "ההתקנה עדיין לא הושלמה, ולכן המחשב עדיין לא מוגן.",
         OverallState.AdminActionRequired => "נדרשת פעולה של מנהל המחשב. פרטים ברשימה למטה.",
         OverallState.DeviceInactive => "המכשיר לא פעיל בשרת (ממתין לאישור, הושבת או הוסר). פנו לתמיכה.",
+        OverallState.Paused => "מנהל המערכת השהה את ההגנה מהדשבורד (מצב תחזוקה). כל ההגנה כבויה זמנית, והיא תחזור לבד בתום ההשהיה.",
         OverallState.NotEnrolled => "כדי להתחיל, הצטרפו לשירות או הזינו קוד הפעלה שקיבלתם מ-FilterPhone.",
         OverallState.AwaitingApproval => "הבקשה התקבלה ומחכה לאישור. אחרי האישור המחשב מתחבר לבד.",
         OverallState.RegistrationRejected => "הבקשה לא אושרה. אפשר לשלוח בקשה חדשה.",

@@ -86,6 +86,7 @@ internal sealed class ProtectionEngine(
     private DateTimeOffset? _lastVerified;
     private DateTimeOffset? _dataFailSince;
     private string? _killSwitchPlanHash;
+    private DateTimeOffset? _pausedUntil;       // maintenance pause set in the dashboard; null = not paused
     private bool _tunnelUpThisRun;
     private bool _apiReachable = true;
     private int _reconnects;
@@ -176,6 +177,19 @@ internal sealed class ProtectionEngine(
         Set(Layers.Enrollment, CheckState.Ok, _state.ServerStatus == "unauthorized" ? "unauthorized" : "enrolled");
         using var vpnDoc = JsonDocument.Parse(vpnJson);
         var vpn = VpnSettings.Parse(vpnDoc.RootElement);
+
+        // 0. Maintenance pause (set by the administrator in the dashboard): stand everything down — no component
+        // stays active. Keep talking to the server so we learn when it is resumed; and the PC re-arms on its own
+        // at _pausedUntil even if it never hears back, so a pause can never become permanent.
+        if (_pausedUntil is { } pausedUntil && now < pausedUntil)
+        {
+            await StandDownForPauseAsync(ct).ConfigureAwait(false);
+            if (now >= _nextServerSync && _apiBackoff.CanAttempt(now))
+            {
+                await ServerSyncAsync(token, vpn, tunnelOk: false, now, ct).ConfigureAwait(false);
+            }
+            return;
+        }
 
         // 1. Kill switch first: if it was ever enabled it must be in force before anything else happens.
         EnsureKillSwitch(vpn);
@@ -282,6 +296,30 @@ internal sealed class ProtectionEngine(
         {
             log.LogError(e, "Could not remove stray network lock ({Why})", why);
         }
+    }
+
+    /// <summary>
+    /// Dashboard maintenance pause: remove every restriction so the PC is completely unfiltered and unblocked for
+    /// the duration. Each step is best-effort and independent; the kill switch goes first so a failure later can
+    /// never leave the PC offline. Nothing here is destructive — a normal tick re-arms everything when the pause
+    /// ends (the config and the CA stay in place, so the tunnel just restarts and the blocks reapply).
+    /// </summary>
+    private async Task StandDownForPauseAsync(CancellationToken ct)
+    {
+        RemoveStrayLock("paused");          // network lock off first (best-effort, verified)
+        tunnel.Stop();                      // stop the tunnel (keeps config; a later Start re-arms it)
+        try
+        {
+            await chromeOnly.RemoveAsync(_state, ct).ConfigureAwait(false);   // browser restriction + Store block off
+            DesktopExtrasEnforcer.RemoveAll(_state);                          // optional Windows blocks off
+            _state.Save();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            log.LogWarning(e, "Pause: could not fully remove the optional blocks (will retry next tick)");
+        }
+        Set(Layers.KillSwitch, CheckState.Pending, "paused");
+        Set(Layers.Tunnel, CheckState.Pending, "paused");
     }
 
     // ------------------------------------------------------------------ tunnel
@@ -569,6 +607,7 @@ internal sealed class ProtectionEngine(
             var hb = await api.HeartbeatAsync(token, BuildHeartbeat(now), ct).ConfigureAwait(false);
             _state.PolicyVersion = hb.PolicyVersion ?? _state.PolicyVersion;
             _state.ServerStatus = hb.Status.Length > 0 ? hb.Status : _state.ServerStatus;
+            _pausedUntil = hb.PausedUntil;      // maintenance pause from the dashboard (null once resumed/expired)
             ApplyServerControls(hb);
             _state.Save();
             var interval = TimeSpan.FromSeconds(Math.Min(hb.IntervalSeconds, _state.HeartbeatIntervalSeconds));
@@ -1261,9 +1300,11 @@ internal sealed class ProtectionEngine(
             Registration = _state.Enrolled ? null : _state.Registration?.Status,
         };
         var reg = _state.Enrolled ? null : _state.Registration;
+        var paused = _pausedUntil is { } pu && DateTimeOffset.UtcNow < pu;
         _snapshot = new ProtectionSnapshot
         {
-            Overall = ProtectionEvaluator.Evaluate(checks, ctx),
+            Overall = paused ? OverallState.Paused : ProtectionEvaluator.Evaluate(checks, ctx),
+            PausedUntil = paused ? _pausedUntil : null,
             Checks = checks,
             DeviceId = _state.DeviceId,
             DeviceName = _state.DeviceName,

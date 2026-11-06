@@ -48,6 +48,7 @@ public enum OverallState
     FilteringTestFailed,
     AdminActionRequired,
     DeviceInactive,
+    Paused,                 // the administrator paused protection from the dashboard (maintenance); everything stood down
     ProtectedWithLimitations,
     Protected,
 }
@@ -66,6 +67,8 @@ public sealed record ProtectionSnapshot
     public DateTimeOffset? LastHandshake { get; init; }
     public DateTimeOffset? LastVerified { get; init; }
     public DateTimeOffset? ProtectedSince { get; init; }
+    /// <summary>When Overall is Paused: the moment the dashboard-set maintenance pause ends; null otherwise.</summary>
+    public DateTimeOffset? PausedUntil { get; init; }
     public string Version { get; init; } = ProductConfig.Version;
     public string WindowsEdition { get; init; } = string.Empty;
     public string WindowsBuild { get; init; } = string.Empty;

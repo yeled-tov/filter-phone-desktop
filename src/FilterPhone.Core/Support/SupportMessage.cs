@@ -79,6 +79,7 @@ public static class StateText
         OverallState.SetupIncomplete => "ההתקנה לא הושלמה",
         OverallState.AdminActionRequired => "נדרשת פעולת מנהל",
         OverallState.DeviceInactive => "המכשיר לא פעיל בשרת",
+        OverallState.Paused => "ההגנה מושהית (מצב תחזוקה)",
         OverallState.NotEnrolled => "לא הופעל",
         OverallState.AwaitingApproval => "ההרשמה ממתינה לאישור",
         OverallState.RegistrationRejected => "ההרשמה לא אושרה",

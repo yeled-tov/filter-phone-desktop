@@ -48,8 +48,17 @@ public sealed record HeartbeatResult(string Status, int? PolicyVersion, int Inte
     /// <summary>This PC's removal-code key, sent only when the PC asked for it; null otherwise.</summary>
     public string? RemovalKey { get; init; }
 
+    /// <summary>
+    /// When the administrator paused protection from the dashboard (maintenance mode), the moment the pause
+    /// expires; null when not paused. While paused the PC stands down completely and re-arms on its own at this
+    /// time (or earlier, when the dashboard resumes it), so a missed heartbeat can never leave it paused forever.
+    /// </summary>
+    public DateTimeOffset? PausedUntil { get; init; }
+
+    public bool IsPaused(DateTimeOffset now) => PausedUntil is { } until && now < until;
+
     public override string ToString() =>
-        $"HeartbeatResult(status={Status}, policy={PolicyVersion}, controls={Controls}, removalKey={(RemovalKey is null ? "none" : "<redacted>")})";
+        $"HeartbeatResult(status={Status}, policy={PolicyVersion}, controls={Controls}, paused={(PausedUntil is { } u ? u.ToString("u") : "no")}, removalKey={(RemovalKey is null ? "none" : "<redacted>")})";
 }
 
 /// <summary>

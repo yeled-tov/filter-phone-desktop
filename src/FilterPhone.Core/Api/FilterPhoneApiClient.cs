@@ -254,11 +254,19 @@ public sealed partial class FilterPhoneApiClient : IDisposable
             var key = Json.String(w, "removal_key");
             removalKey = Removal.RemovalCode.IsValidKey(key) ? key : null;
         }
+        DateTimeOffset? pausedUntil = null;
+        if (r.TryGetProperty("paused", out var pz) && pz.ValueKind == JsonValueKind.Object
+            && pz.TryGetProperty("until", out var untilEl) && untilEl.ValueKind == JsonValueKind.Number
+            && untilEl.TryGetInt64(out var untilSec) && untilSec > 0)
+        {
+            pausedUntil = DateTimeOffset.FromUnixTimeSeconds(untilSec);
+        }
         return new HeartbeatResult(Json.String(r, "status"), Json.NullableInt(r, "policy_version"),
             Math.Clamp(Json.Int(r, "interval_s", 900), 300, 86_400), Json.String(r, "message"))
         {
             Controls = controls,
             RemovalKey = removalKey,
+            PausedUntil = pausedUntil,
         };
     }
 
