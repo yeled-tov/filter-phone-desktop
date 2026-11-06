@@ -69,36 +69,33 @@ internal static unsafe class WfpKillSwitch
         }
     }
 
-    /// <summary>Removes every FilterPhone filter, the sub-layer and the provider. Safe to call when nothing is installed.</summary>
+    /// <summary>
+    /// Removes every FilterPhone filter, the sub-layer and the provider. Safe to call when nothing is installed.
+    ///
+    /// Best-effort by design: this is the one path that restores internet after the fail-closed lock, so it must
+    /// never leave the PC offline because of a single stuck object. Each delete is attempted independently (no
+    /// transaction that an early error would abort), and only then do we verify nothing of ours remains. On a
+    /// persistent lock this is what the recovery command and the uninstaller rely on.
+    /// </summary>
     public static void Remove()
     {
-        using var engine = Engine.Open();
-        Check("FwpmTransactionBegin0", Fwpuclnt.FwpmTransactionBegin0(engine.Handle, 0));
-        var committed = false;
-        try
+        using (var engine = Engine.Open())
         {
-            DeleteFilters(engine.Handle);
+            // Filters first (the sub-layer cannot go while they reference it), then the sub-layer, then the provider.
+            for (var i = 0; i < MaxFilters; i++)
+            {
+                var key = FilterKey(i);
+                _ = Fwpuclnt.FwpmFilterDeleteByKey0(engine.Handle, &key);
+            }
             var sub = SubLayerKey;
-            var r = Fwpuclnt.FwpmSubLayerDeleteByKey0(engine.Handle, &sub);
-            if (r != 0 && r != WfpConst.FWP_E_SUBLAYER_NOT_FOUND)
-            {
-                throw new WfpException("FwpmSubLayerDeleteByKey0", r);
-            }
+            _ = Fwpuclnt.FwpmSubLayerDeleteByKey0(engine.Handle, &sub);
             var prov = ProviderKey;
-            r = Fwpuclnt.FwpmProviderDeleteByKey0(engine.Handle, &prov);
-            if (r != 0 && r != WfpConst.FWP_E_PROVIDER_NOT_FOUND)
-            {
-                throw new WfpException("FwpmProviderDeleteByKey0", r);
-            }
-            Check("FwpmTransactionCommit0", Fwpuclnt.FwpmTransactionCommit0(engine.Handle));
-            committed = true;
+            _ = Fwpuclnt.FwpmProviderDeleteByKey0(engine.Handle, &prov);
         }
-        finally
+        var left = InstalledFilterCount();
+        if (left != 0)
         {
-            if (!committed)
-            {
-                _ = Fwpuclnt.FwpmTransactionAbort0(engine.Handle);
-            }
+            throw new WfpException($"network lock still has {left} filter(s) after removal", 0);
         }
     }
 

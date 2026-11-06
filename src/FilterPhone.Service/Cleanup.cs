@@ -19,6 +19,17 @@ internal static class Cleanup
     public static async Task<int> RunAsync(ILoggerFactory loggers, bool networkLockOnly)
     {
         var log = loggers.CreateLogger("Cleanup");
+
+        // Restoring internet (removing the fail-closed network lock) is ALWAYS allowed. It needs local admin, and
+        // while the protection service runs it re-applies the lock within seconds, so this is no escape from
+        // filtering for the PC's users — but it guarantees the PC is never left permanently offline by a stuck
+        // uninstall, an expired code, or an unreachable server. The removal CODE gates removing the protection as a
+        // whole (below), never the recovery of connectivity.
+        if (networkLockOnly)
+        {
+            return Step(log, "network lock", WfpKillSwitch.Remove) == 0 ? 0 : 1;
+        }
+
         if (!RemovalGate.Allowed(MachineState.Load(), DateTimeOffset.UtcNow))
         {
             log.LogWarning("Removal refused: a removal code from the FilterPhone dashboard is required");
@@ -27,11 +38,8 @@ internal static class Cleanup
         }
         var failures = 0;
 
+        // Network lock first, so a failure in a later step never leaves the PC offline.
         failures += Step(log, "network lock", WfpKillSwitch.Remove);
-        if (networkLockOnly)
-        {
-            return failures == 0 ? 0 : 1;
-        }
 
         var state = MachineState.Load();
         failures += await StepAsync(log, "tunnel service",

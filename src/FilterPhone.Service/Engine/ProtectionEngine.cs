@@ -222,11 +222,15 @@ internal sealed class ProtectionEngine(
     {
         if (!Consent.NetworkLock)
         {
+            RemoveStrayLock("consent_missing");
             Set(Layers.KillSwitch, CheckState.Failed, "consent_missing");
             return;
         }
         if (!_state.NetworkLockEnabled)
         {
+            // No lock should exist before the tunnel is first verified (or after it was disabled, e.g. paused):
+            // remove any that lingers so the PC is never fail-closed without protection actually running.
+            RemoveStrayLock("waiting_for_verified_tunnel");
             Set(Layers.KillSwitch, CheckState.Pending, "waiting_for_verified_tunnel");
             return;
         }
@@ -256,6 +260,27 @@ internal sealed class ProtectionEngine(
         {
             log.LogError(e, "Network lock could not be installed");
             Set(Layers.KillSwitch, CheckState.Failed, e is WfpException w ? $"wfp_0x{w.Code:x8}" : "invalid_inputs");
+        }
+    }
+
+    /// <summary>
+    /// Removes a network lock that should not be present right now (no consent, not yet verified, or paused), so a
+    /// leftover fail-closed lock can never keep the PC offline while protection is not actually running.
+    /// </summary>
+    private void RemoveStrayLock(string why)
+    {
+        try
+        {
+            if (WfpKillSwitch.InstalledFilterCount() > 0)
+            {
+                WfpKillSwitch.Remove();
+                _killSwitchPlanHash = null;
+                log.LogWarning("Removed a network lock that should not be present ({Why})", why);
+            }
+        }
+        catch (Exception e) when (e is WfpException or DllNotFoundException)
+        {
+            log.LogError(e, "Could not remove stray network lock ({Why})", why);
         }
     }
 

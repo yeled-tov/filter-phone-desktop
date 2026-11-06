@@ -32,14 +32,20 @@
 
 ## שחזור (recovery)
 
-- **אין אינטרנט כי ה-kill switch פעיל והשירות תקוע** (נדיר): מפיקים בדשבורד (טאב "מחשבים" ←
-  המחשב ← "שליטה במחשב") קוד הסרה, ואז ממנהל מריצים
+- **אין אינטרנט כי ה-kill switch פעיל** (נדיר): הסרת חסימת הגלישה **אינה דורשת קוד הסרה** — היא
+  רק מחזירה אינטרנט (fail-open), וכל עוד השירות פעיל הוא מחזיר את הנעילה תוך שניות. ממנהל מריצים:
   ```
-  "C:\Program Files\FilterPhone Desktop\FilterPhone.Service.exe" --authorize-removal XXXXX-XXXXX
   "C:\Program Files\FilterPhone Desktop\FilterPhone.Service.exe" --remove-network-lock
   ```
-  זה מסיר רק את חסימת הגלישה (fail-open זמני). אתחול השירות או הרצה חוזרת של
-  ההתקנה יחזירו את ההגנה. במחשב שלא הופעל, או שנמחק בדשבורד, אין צורך בקוד.
+  אתחול השירות או הרצה חוזרת של ההתקנה יחזירו את ההגנה.
+- **אין אינטרנט וגם התוכנה כבר הוסרה / הקובץ לא קיים** (נעילת WFP נשארה): מריצים ממנהל את סקריפט
+  השחזור `recovery/FilterPhone-Recover-Internet.ps1`. הוא מסיר את נעילת הרשת של FilterPhone ישירות
+  מ-WFP דרך ה-GUIDs הקבועים, בעזרת רכיבי Windows בלבד, בלי קובץ של FilterPhone ובלי קוד:
+  ```
+  powershell -ExecutionPolicy Bypass -File recovery\FilterPhone-Recover-Internet.ps1
+  ```
+  נעילת ה-WFP קבועה (שורדת אתחול), ולכן אתחול לבדו לא מספיק — צריך את הסקריפט או את הפקודה שמעליו.
+  ההסרה הרגילה של התוכנה ממילא מסירה את הנעילה **ראשונה ובלי תנאי**, כך שהסרה תקינה לא משאירה מחשב בלי אינטרנט.
 - **בדיקת מצב מהיר** (מנהל): `... FilterPhone.Service.exe --status`.
 - **דוח אבחון מצונזר**: מהממשק → "ייצוא דוח אבחון", או `... --diagnostics`.
 - לוגים: `C:\ProgramData\FilterPhone\Logs` (SYSTEM/מנהלים בלבד, סודות מצונזרים).

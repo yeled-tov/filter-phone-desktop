@@ -88,7 +88,12 @@ Filename: "{app}\{#AppExe}"; Description: "פתיחת FilterPhone והצטרפו
 
 [UninstallRun]
 ; Stop and remove our service, then restore everything our service changed (CA, AppLocker, network lock).
+; Order matters: stop the service (so it stops re-applying the lock), then remove the network lock
+; UNCONDITIONALLY as a safety net — this is never gated by the removal code and never leaves the PC offline,
+; so even if --cleanup fails afterwards the internet is already restored. --cleanup then removes everything
+; (lock again as a no-op, filtering CA, browser restriction, optional Windows blocks, secrets and state).
 Filename: "{sys}\sc.exe"; Parameters: "stop {#ServiceName}"; RunOnceId: "StopSvc"; Flags: runhidden waituntilterminated
+Filename: "{app}\{#ServiceExe}"; Parameters: "--remove-network-lock"; RunOnceId: "RestoreNet"; Flags: runhidden waituntilterminated
 Filename: "{app}\{#ServiceExe}"; Parameters: "--cleanup"; RunOnceId: "Cleanup"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "delete {#ServiceName}"; RunOnceId: "DelSvc"; Flags: runhidden waituntilterminated
 

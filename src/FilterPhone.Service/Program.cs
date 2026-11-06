@@ -24,10 +24,29 @@ if (args.Length == 1 && args[0] == "--version")
 }
 if (args.Length == 1 && args[0] is "--cleanup" or "--remove-network-lock")
 {
-    SecureDirectory.EnsureAll();
-    var serviceLog = new ServiceLog(Paths.Logs);
-    using var loggers = LoggerFactory.Create(b => b.AddProvider(serviceLog).AddSimpleConsole());
-    return await Cleanup.RunAsync(loggers, networkLockOnly: args[0] == "--remove-network-lock").ConfigureAwait(false);
+    var networkLockOnly = args[0] == "--remove-network-lock";
+    // Removing the network lock must work even when the secure data dirs are missing or broken (recovery after a
+    // half-finished uninstall), so only the full cleanup prepares them, and even that is best-effort.
+    if (!networkLockOnly)
+    {
+        try
+        {
+            SecureDirectory.EnsureAll();
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine("Secure directories not ready, continuing cleanup: " + e.Message);
+        }
+    }
+    using var loggers = LoggerFactory.Create(b =>
+    {
+        b.AddSimpleConsole();
+        if (!networkLockOnly)
+        {
+            b.AddProvider(new ServiceLog(Paths.Logs));
+        }
+    });
+    return await Cleanup.RunAsync(loggers, networkLockOnly).ConfigureAwait(false);
 }
 if (args.Length == 1 && args[0] == "--removal-status")
 {
