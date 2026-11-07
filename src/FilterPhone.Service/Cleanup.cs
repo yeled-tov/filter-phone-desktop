@@ -49,6 +49,7 @@ internal static class Cleanup
         failures += await StepAsync(log, "browser restriction",
             () => new ChromeOnlyEnforcer(loggers.CreateLogger<ChromeOnlyEnforcer>()).RemoveAsync(state, CancellationToken.None)).ConfigureAwait(false);
         failures += Step(log, "optional Windows blocks", () => DesktopExtrasEnforcer.RemoveAll(state));
+        failures += Step(log, "ad blocking extension", () => AdBlockEnforcer.RemoveAll(state));
         failures += Step(log, "secrets and state", () =>
         {
             SecretStore.DeleteAll();

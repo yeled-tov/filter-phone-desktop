@@ -250,7 +250,11 @@ public sealed partial class FilterPhoneApiClient : IDisposable
             // chrome_only / block_store default to on when missing (never weaken those); the extra toggles are
             // opt-in, so a missing value means off.
             var extras = DesktopControls.ExtraNames.ToDictionary(n => n, n => Json.Bool(w, n) ?? false, StringComparer.Ordinal);
-            controls = new DesktopControls(Json.Bool(w, "chrome_only") ?? true, Json.Bool(w, "block_store") ?? true, extras);
+            controls = new DesktopControls(Json.Bool(w, "chrome_only") ?? true, Json.Bool(w, "block_store") ?? true, extras)
+            {
+                BlockAds = Json.Bool(w, "block_ads") ?? false,
+                AdAllowSites = ParseSites(w),
+            };
             var key = Json.String(w, "removal_key");
             removalKey = Removal.RemovalCode.IsValidKey(key) ? key : null;
         }
@@ -394,4 +398,26 @@ public sealed partial class FilterPhoneApiClient : IDisposable
     }
 
     public void Dispose() => _http.Dispose();
+
+    /// <summary>The dashboard's ad-exception sites: plain hostnames only, at most 500; anything else is dropped.</summary>
+    internal static IReadOnlyList<string> ParseSites(JsonElement windows)
+    {
+        if (!windows.TryGetProperty("ad_allow_sites", out var list) || list.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+        var sites = new List<string>();
+        foreach (var item in list.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String && item.GetString() is { } h && IsHostname(h) && sites.Count < 500)
+            {
+                sites.Add(h.ToLowerInvariant());
+            }
+        }
+        return sites;
+    }
+
+    private static bool IsHostname(string h) =>
+        h.Length is > 3 and <= 253 && h.Contains('.', StringComparison.Ordinal)
+        && h.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-') && !h.StartsWith('.') && !h.EndsWith('.');
 }

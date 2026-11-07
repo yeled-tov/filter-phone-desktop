@@ -11,7 +11,9 @@ namespace FilterPhone.Windows.Tests;
 /// Proves that an optional Windows toggle (block_copilot) is applied as its Group Policy registry value when
 /// the dashboard turns it on, and the original value is restored exactly when it is turned off — on the real
 /// registry. Uses a harmless, fully reversible policy key and cleans up after itself.
+/// In the "wfp" collection because it saves the machine state file, which CleanupNetworkLockTests plants.
 /// </summary>
+[Collection("wfp")]
 public sealed class DesktopExtrasTests : IDisposable
 {
     private readonly PolicyValue _copilot = MachinePolicies.DesktopExtras["block_copilot"][0];

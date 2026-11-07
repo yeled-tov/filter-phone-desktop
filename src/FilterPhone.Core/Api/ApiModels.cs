@@ -73,6 +73,15 @@ public sealed record DesktopControls(bool ChromeOnly, bool BlockStore, IReadOnly
         ["block_copilot", "block_widgets", "block_spotlight", "block_web_search", "block_removable"];
 
     public bool Extra(string name) => Extras.TryGetValue(name, out var on) && on;
+
+    /// <summary>
+    /// Ad blocking in Chrome by the policy-installed uBlock Origin Lite extension (server: block_ads). Off when the
+    /// server does not send it: an older server still blocks ads in DNS, so nothing changes on this PC.
+    /// </summary>
+    public bool BlockAds { get; init; }
+
+    /// <summary>Sites where the extension does not block ads (server: ad_allow_sites); hostnames only.</summary>
+    public IReadOnlyList<string> AdAllowSites { get; init; } = [];
 }
 
 /// <summary>What the PC verified, per protection layer, for the dashboard (server: heartbeat "windows").</summary>

@@ -257,6 +257,28 @@ public class ApiClientTests
     }
 
     [Fact]
+    public async Task Heartbeat_reads_ad_blocking_and_keeps_only_valid_exception_sites()
+    {
+        var handler = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
+            "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"," +
+            "\"windows\": {\"chrome_only\": true, \"block_store\": true, \"block_ads\": true, " +
+            "\"ad_allow_sites\": [\"News.Example\", \"bad host\", 5, \"x\", \"shop.example\"]}}"));
+        using var client = new FilterPhoneApiClient(Base, handler: handler);
+        var r = await client.HeartbeatAsync("tok", new HeartbeatReport { AppVersion = "1", DeviceUid = "0123456789abcdef", VpnState = "UP" }, default);
+        Assert.True(r.Controls!.BlockAds);
+        Assert.Equal(new[] { "news.example", "shop.example" }, r.Controls.AdAllowSites);
+
+        // An older server sends neither: the extension stays off (that server still blocks ads in DNS).
+        var old = new FakeHandler((_, _) => FakeHandler.Json(HttpStatusCode.OK,
+            "{\"status\": \"active\", \"policy_version\": 1, \"interval_s\": 900, \"message\": \"\"," +
+            "\"windows\": {\"chrome_only\": true, \"block_store\": true}}"));
+        using var oldClient = new FilterPhoneApiClient(Base, handler: old);
+        var o = await oldClient.HeartbeatAsync("tok", new HeartbeatReport { AppVersion = "1", DeviceUid = "0123456789abcdef", VpnState = "UP" }, default);
+        Assert.False(o.Controls!.BlockAds);
+        Assert.Empty(o.Controls.AdAllowSites);
+    }
+
+    [Fact]
     public async Task Heartbeat_reads_a_dashboard_pause_and_its_end_time()
     {
         var until = DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds();

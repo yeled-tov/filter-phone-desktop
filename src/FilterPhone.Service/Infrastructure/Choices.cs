@@ -20,6 +20,19 @@ internal static class Choices
     /// <summary>An optional Windows toggle (block_copilot, …): off unless the dashboard turned it on.</summary>
     public static bool Extra(string name) => ReadBool(name, defaultValue: false);
 
+    /// <summary>Ad blocking in Chrome (the extension): off unless the dashboard turned it on.</summary>
+    public static bool BlockAds => ReadBool("BlockAds", defaultValue: false);
+
+    /// <summary>Sites where the ad-blocking extension does nothing (from the dashboard).</summary>
+    public static IReadOnlyList<string> AdAllowSites
+    {
+        get
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(ServerKey);
+            return key?.GetValue("AdAllowSites") is string[] sites ? sites : [];
+        }
+    }
+
     /// <summary>Stores the dashboard's values. Returns true when something changed.</summary>
     public static bool Save(DesktopControls controls)
     {
@@ -40,6 +53,13 @@ internal static class Choices
         foreach (var name in DesktopControls.ExtraNames)
         {
             Put(name, controls.Extra(name));
+        }
+        Put("BlockAds", controls.BlockAds);
+        var sites = controls.AdAllowSites.ToArray();
+        if (key.GetValue("AdAllowSites") is not string[] currentSites || !currentSites.SequenceEqual(sites, StringComparer.Ordinal))
+        {
+            key.SetValue("AdAllowSites", sites, Microsoft.Win32.RegistryValueKind.MultiString);
+            changed = true;
         }
         return changed;
     }

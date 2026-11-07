@@ -312,6 +312,7 @@ internal sealed class ProtectionEngine(
         {
             await chromeOnly.RemoveAsync(_state, ct).ConfigureAwait(false);   // browser restriction + Store block off
             DesktopExtrasEnforcer.RemoveAll(_state);                          // optional Windows blocks off
+            AdBlockEnforcer.RemoveAll(_state);                                // ad-blocking extension off
             _state.Save();
         }
         catch (Exception e) when (e is not OperationCanceledException)
@@ -748,6 +749,15 @@ internal sealed class ProtectionEngine(
     {
         // Optional Windows blocks the dashboard turned on (Copilot, widgets, Spotlight, web search, USB).
         DesktopExtrasEnforcer.Apply(_state, log);
+        // Ad blocking in Chrome (extension + exception sites). Its failure must not stop the browser restriction.
+        try
+        {
+            AdBlockEnforcer.Apply(_state, log);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            log.LogWarning(e, "Ad blocking settings could not be applied; retrying next tick");
+        }
         Set(Layers.ChromePolicy, ChromeOnlyEnforcer.MachinePoliciesApplied() ? CheckState.Ok : CheckState.Pending,
             ChromeOnlyEnforcer.MachinePoliciesApplied() ? "applied" : "not_applied");
         if (!_policyBackoff.CanAttempt(now))

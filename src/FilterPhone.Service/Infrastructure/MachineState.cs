@@ -44,6 +44,7 @@ internal sealed class MachineState
     public DateTimeOffset? RemovalAuthorizedUntil { get; set; }   // set when a valid removal code was entered
     // Original values of the optional Windows toggles, kept so each can be restored exactly when turned off.
     public Dictionary<string, string?> DesktopExtraBackup { get; set; } = [];
+    public bool AdBlockForcelistOwned { get; set; }               // we added the ad-blocking extension to Chrome's force-install list
     public PendingRegistration? Registration { get; set; }        // a registration waiting for the administrator
 
     private static readonly JsonSerializerOptions Options = new()
