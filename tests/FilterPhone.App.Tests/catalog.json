@@ -1,0 +1,536 @@
+{
+ "levels": [
+  {
+   "level": 1,
+   "name": "מחמיר",
+   "short": "כל תמונה של אישה נחסמת",
+   "desc": "כל תמונה של אישה או ילדה נחסמת, גם בלבוש צנוע. תמונות של גברים, נופים ומוצרים עוברות. באפליקציות שאי אפשר לסנן — תמונות לא נטענות."
+  },
+  {
+   "level": 2,
+   "name": "בינוני",
+   "short": "לבוש צנוע עובר, חשיפה נצבעת",
+   "desc": "תמונות בלבוש צנוע עוברות. עור חשוף נצבע בשחור לפי צורת הגוף (ידיים, כתפיים, רגליים וכו'), ובלבוש חשוף מאוד — כל הגוף חוץ מהפנים. עירום נחסם לגמרי."
+  },
+  {
+   "level": 3,
+   "name": "בסיסי",
+   "short": "רק עירום נחסם",
+   "desc": "רק תמונות עירום מפורש נחסמות. כל השאר עובר."
+  }
+ ],
+ "categories": [
+  {
+   "id": "images",
+   "title": "תמונות ווידאו",
+   "desc": "מעבר לרמת הסינון: בלי תמונות בכלל, בלי סרטונים."
+  },
+  {
+   "id": "messaging",
+   "title": "וואטסאפ והודעות",
+   "desc": "תמונות פרופיל, סטטוסים, מדיה — או חסימה מלאה."
+  },
+  {
+   "id": "social",
+   "title": "רשתות חברתיות",
+   "desc": "חסימה מלאה — באפליקציה ובדפדפן."
+  },
+  {
+   "id": "google",
+   "title": "גוגל ואנדרואיד",
+   "desc": "חנות האפליקציות, הפיד של גוגל, חיפוש תמונות."
+  },
+  {
+   "id": "browsers",
+   "title": "דפדפנים",
+   "desc": "דפדפנים שלא עוברים סינון תמונות, או כל הגלישה."
+  },
+  {
+   "id": "video",
+   "title": "וידאו, מוזיקה ובידור",
+   "desc": "יוטיוב, נטפליקס, ספוטיפיי ועוד."
+  },
+  {
+   "id": "shopping",
+   "title": "קניות",
+   "desc": "חנויות אונליין עם הרבה תמונות שקשה לסנן באפליקציה."
+  },
+  {
+   "id": "news",
+   "title": "חדשות וספורט",
+   "desc": "אתרי חדשות כלליים."
+  },
+  {
+   "id": "ai",
+   "title": "בינה מלאכותית",
+   "desc": "צ'אטבוטים ומחוללי תמונות."
+  },
+  {
+   "id": "games",
+   "title": "משחקים",
+   "desc": "משחקים אונליין וחנויות משחקים."
+  },
+  {
+   "id": "dating",
+   "title": "היכרויות",
+   "desc": "אפליקציות ואתרי היכרויות."
+  },
+  {
+   "id": "protection",
+   "title": "הגנה מפני עקיפה",
+   "desc": "סגירת הדרכים לעקוף את הסינון."
+  }
+ ],
+ "options": [
+  {
+   "id": "images_off",
+   "category": "images",
+   "title": "חסימת כל התמונות",
+   "desc": "גלישה בלי תמונות בכלל: כל תמונה בדפדפן מוחלפת במלבן אפור, בלי קשר לרמת הסינון.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "video_off",
+   "category": "images",
+   "title": "חסימת וידאו בדפדפן",
+   "desc": "סרטונים באתרים לא נטענים (גם נגנים מוטמעים). אפליקציות וידאו נחסמות בנפרד בקטגוריית הבידור.",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "whatsapp_profile",
+   "category": "messaging",
+   "title": "תמונות פרופיל בוואטסאפ",
+   "desc": "תמונות הפרופיל של אנשי הקשר והקבוצות לא נטענות, ואי אפשר לפתוח תמונת פרופיל (גם כזו שכבר שמורה בטלפון). הודעות, שיחות, קבצים ותמונות בצ'אט — כרגיל.",
+   "popular": true,
+   "warn": "פתיחת תמונת פרופיל נחסמת בטלפון עצמו (מגן FilterPhone). התמונות הקטנות ברשימת הצ'אטים שכבר שמורות בטלפון עשויות להמשיך להופיע עד שוואטסאפ מרענן אותן.",
+   "pc": true
+  },
+  {
+   "id": "whatsapp_status",
+   "category": "messaging",
+   "title": "סטטוסים בוואטסאפ",
+   "desc": "אי אפשר לפתוח סטטוסים. נאכף בטלפון עצמו (מגן FilterPhone), כי וואטסאפ מוריד סטטוסים מאותם שרתים כמו תמונות בצ'אט. לחסימה מלאה גם של התמונות — 'מדיה בוואטסאפ'.",
+   "popular": true,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "whatsapp_channels",
+   "category": "messaging",
+   "title": "ערוצים בוואטסאפ",
+   "desc": "הערוצים בוואטסאפ (Channels) נחסמים — אי אפשר לפתוח ערוץ או את מדריך הערוצים. נאכף בטלפון עצמו (מגן FilterPhone). הצ'אטים, הקבוצות והשיחות ממשיכים כרגיל.",
+   "popular": false,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "whatsapp_updates",
+   "category": "messaging",
+   "title": "טאב העדכונים בוואטסאפ (סטטוסים + ערוצים)",
+   "desc": "כל טאב 'עדכונים' בוואטסאפ נחסם — ברגע שנכנסים אליו (שם נמצאים גם הסטטוסים וגם הערוצים) המגן מחזיר מיד לצ'אטים. נאכף בטלפון עצמו (מגן FilterPhone). כולל את חסימת הסטטוסים והערוצים.",
+   "popular": true,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "whatsapp_media",
+   "category": "messaging",
+   "title": "מדיה בוואטסאפ (תמונות, סרטונים, סטטוסים)",
+   "desc": "תמונות, סרטונים וסטטוסים לא יורדים. ההודעות הכתובות והשיחות עובדות.",
+   "popular": false,
+   "warn": "וואטסאפ מוריד גם הודעות קוליות ומסמכים מאותם שרתים — גם הם לא ייפתחו.",
+   "pc": true
+  },
+  {
+   "id": "whatsapp",
+   "category": "messaging",
+   "title": "וואטסאפ — חסימה מלאה",
+   "desc": "וואטסאפ ו-WhatsApp Business לא עובדים בכלל.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "telegram",
+   "category": "messaging",
+   "title": "טלגרם",
+   "desc": "האפליקציה והאתר. טלגרם מתחבר גם לכתובות קבועות — לכן נחסם גם בטלפון עצמו.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "viber",
+   "category": "messaging",
+   "title": "ויבר",
+   "desc": "האפליקציה והקהילות שבה.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "facebook",
+   "category": "social",
+   "title": "פייסבוק ומסנג'ר",
+   "desc": "",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "instagram",
+   "category": "social",
+   "title": "אינסטגרם",
+   "desc": "",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "tiktok",
+   "category": "social",
+   "title": "טיקטוק",
+   "desc": "",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "twitter",
+   "category": "social",
+   "title": "X (טוויטר)",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "threads",
+   "category": "social",
+   "title": "Threads",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "snapchat",
+   "category": "social",
+   "title": "סנאפצ'ט",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "pinterest",
+   "category": "social",
+   "title": "פינטרסט",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "reddit",
+   "category": "social",
+   "title": "רדיט",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "linkedin",
+   "category": "social",
+   "title": "לינקדאין",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "tumblr",
+   "category": "social",
+   "title": "טאמבלר",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "discord",
+   "category": "social",
+   "title": "דיסקורד",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "play_store",
+   "category": "google",
+   "title": "כניסה לחנות Google Play",
+   "desc": "אי אפשר להיכנס לחנות ולהתקין ממנה ישירות. אפליקציות מאושרות מותקנות ומתעדכנות דרך חנות FilterPhone.",
+   "popular": true,
+   "warn": "נאכף ע\"י מגן FilterPhone (נגישות). מומלץ לחסום יחד גם 'אתרי הורדת APK'.",
+   "pc": false
+  },
+  {
+   "id": "play_store_full",
+   "category": "google",
+   "title": "Google Play — חסימה מלאה",
+   "desc": "החנות חסומה גם ברשת ומוסתרת: אין התקנות ואין עדכוני אפליקציות בכלל.",
+   "popular": false,
+   "warn": "גם עדכוני אבטחה של וואטסאפ וכו' וההתקנה דרך חנות FilterPhone ייעצרו.",
+   "pc": true
+  },
+  {
+   "id": "google_discover",
+   "category": "google",
+   "title": "הפיד של גוגל (Discover)",
+   "desc": "הכתבות עם התמונות במסך הבית של אפליקציית גוגל ובדף הפתיחה של Chrome.",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "google_thumbs",
+   "category": "google",
+   "title": "תמונות ממוזערות בגוגל",
+   "desc": "תוצאות חיפוש, חדשות וקניות בגוגל — בלי התמונות הקטנות (גם באפליקציית גוגל).",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "google_images",
+   "category": "google",
+   "title": "חיפוש תמונות בגוגל",
+   "desc": "הלשונית 'תמונות' בחיפוש גוגל ובבינג חסומה. החיפוש הרגיל עובד.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "google_app",
+   "category": "google",
+   "title": "אפליקציית גוגל",
+   "desc": "האפליקציה עצמה — החיפוש והפיד. ג'מיני, Circle to Search, Lens והעוזר ממשיכים לעבוד (הם רצים מתוך אותה אפליקציה), והחיפוש בכרום לא מושפע.",
+   "popular": false,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "google_photos",
+   "category": "google",
+   "title": "Google Photos",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "browsers_other",
+   "category": "browsers",
+   "title": "דפדפנים חוץ מ-Chrome",
+   "desc": "Firefox, Samsung Internet, Opera, DuckDuckGo ועוד לא נותנים לסנן תמונות. חוסמים אותם ומשאירים את Chrome, שעובר סינון מלא. גם הדפדפן שבתוך וואטסאפ — קישורים נפתחים ב-Chrome.",
+   "popular": true,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "browsers_all",
+   "category": "browsers",
+   "title": "כל הדפדפנים (גם Chrome)",
+   "desc": "אין גלישה בכלל. אפליקציות אחרות ממשיכות לעבוד.",
+   "popular": false,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "youtube",
+   "category": "video",
+   "title": "יוטיוב",
+   "desc": "האפליקציה, האתר והסרטונים המוטמעים באתרים אחרים.",
+   "popular": true,
+   "warn": "FilterTube לא מושפעת: היא עובדת מחוץ ל-VPN ומסננת בעצמה (ראו 'אפליקציות מחוץ ל-VPN').",
+   "pc": true
+  },
+  {
+   "id": "netflix",
+   "category": "video",
+   "title": "נטפליקס",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "disney",
+   "category": "video",
+   "title": "דיסני+",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "twitch",
+   "category": "video",
+   "title": "טוויץ'",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "video_sites",
+   "category": "video",
+   "title": "אתרי וידאו נוספים",
+   "desc": "Vimeo, Dailymotion, Rumble, Bilibili.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "spotify",
+   "category": "video",
+   "title": "ספוטיפיי",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "aliexpress",
+   "category": "shopping",
+   "title": "אליאקספרס",
+   "desc": "",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "temu",
+   "category": "shopping",
+   "title": "טמו",
+   "desc": "",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "shein",
+   "category": "shopping",
+   "title": "שיין",
+   "desc": "",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "amazon",
+   "category": "shopping",
+   "title": "אמזון",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "ebay",
+   "category": "shopping",
+   "title": "איביי",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "news_general",
+   "category": "news",
+   "title": "אתרי חדשות כלליים",
+   "desc": "ynet, וואלה, מאקו, N12, מעריב, הארץ, ישראל היום, כאן ועוד.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "news_sport",
+   "category": "news",
+   "title": "אתרי ספורט",
+   "desc": "ספורט 5, ONE, ספורט 1 ועוד.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "ai_chat",
+   "category": "ai",
+   "title": "צ'אטבוטים ומחוללי תמונות",
+   "desc": "ChatGPT, Gemini, Copilot, Perplexity, Character.AI, Grok, DeepSeek ועוד.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "games",
+   "category": "games",
+   "title": "משחקים אונליין",
+   "desc": "Roblox, Fortnite, Minecraft, Clash, Free Fire, PUBG ועוד. נחסמים גם בטלפון עצמו.",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "dating",
+   "category": "dating",
+   "title": "אפליקציות היכרויות",
+   "desc": "",
+   "popular": false,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "apk_sites",
+   "category": "protection",
+   "title": "אתרי הורדת אפליקציות (APK)",
+   "desc": "APKPure, APKMirror, Aptoide, Uptodown, F-Droid — כדי שלא יתקינו אפליקציות בעקיפת החנות.",
+   "popular": true,
+   "warn": "",
+   "pc": true
+  },
+  {
+   "id": "vpn_apps",
+   "category": "protection",
+   "title": "אפליקציות VPN ועקיפת סינון",
+   "desc": "אנדרואיד מאפשר VPN אחד בכל רגע — VPN אחר מנתק את הסינון. חוסם את האפליקציות הנפוצות (השירותים עצמם כבר חסומים ב-DNS לכולם).",
+   "popular": true,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "galaxy_store",
+   "category": "protection",
+   "title": "חנות Galaxy (Samsung)",
+   "desc": "חנות האפליקציות של סמסונג — כדי שלא יתקינו ממנה אפליקציות בעקיפת החנות שלכם.",
+   "popular": true,
+   "warn": "",
+   "pc": false
+  },
+  {
+   "id": "root_tools",
+   "category": "protection",
+   "title": "כלי Root (מג'יסק וכו')",
+   "desc": "אפליקציות שמנהלות הרשאת-על (Magisk, KernelSU, APatch) או משנות אפליקציות (MT Manager, Lucky Patcher) — איתן אפשר לנקות נתונים או לעקוף את הסינון. חוסם אותן, וגם חוסם את חלון אישור ההרשאה שקופץ (מאשר לאפליקציה גישת-על) — כך שלא ניתן לאשר אותו.",
+   "popular": true,
+   "warn": "",
+   "pc": false
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <!-- One version for every component. CI overrides it from the release tag (v1.2.3 -> 1.2.3). -->
+    <Version Condition="'$(Version)' == ''">0.9.0</Version>
+    <Company>FilterPhone</Company>
+    <Product>FilterPhone Desktop</Product>
+    <Copyright>Copyright © FilterPhone</Copyright>
+    <Authors>FilterPhone</Authors>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    <!-- Lets the Windows-only projects compile (not run) on Linux/macOS developer machines. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- CA1515 (make types internal) and CA1848 (LoggerMessage) add noise without improving safety here. -->
+    <NoWarn>$(NoWarn);CA1515;CA1848;CA1873</NoWarn>
+  </PropertyGroup>
+</Project>

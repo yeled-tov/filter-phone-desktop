@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Hebrew desktop UI. Runs as the signed-in user without elevation and only talks to the
+       protection service over the local named pipe. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>FilterPhone.App</RootNamespace>
+    <AssemblyName>FilterPhone</AssemblyName>
+    <ApplicationIcon>Assets\filterphone.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SelfContained>true</SelfContained>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- CA1822: WPF {Binding} needs instance properties. CA1001: the single-instance mutex is disposed in App.OnExit. -->
+    <NoWarn>$(NoWarn);CA1822;CA1001</NoWarn>
+    <!-- Build-time update feed (HTTPS manifest). Empty = in-app update checks are not configured. -->
+    <FpUpdateManifestUrl Condition="'$(FpUpdateManifestUrl)' == ''"></FpUpdateManifestUrl>
+    <!-- Publisher the installer must be Authenticode-signed by before an update is started. -->
+    <FpUpdatePublisher Condition="'$(FpUpdatePublisher)' == ''"></FpUpdatePublisher>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="FilterPhone.UpdateManifestUrl" Value="$(FpUpdateManifestUrl)" />
+    <AssemblyMetadata Include="FilterPhone.UpdatePublisher" Value="$(FpUpdatePublisher)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\filterphone.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FilterPhone.Core\FilterPhone.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FilterPhone.App.Tests" />
+  </ItemGroup>
+</Project>
