@@ -1,0 +1,23 @@
+FilterPhone Desktop — third-party components and licences
+=========================================================
+
+This file lists the third-party components distributed with, or required by,
+FilterPhone Desktop. A complete machine-readable bill of materials for the
+.NET components is in sbom.cdx.json (CycloneDX), generated during the build.
+
+WireGuard for Windows — WireGuard LLC
+  Licence: MIT. https://www.wireguard.com/  https://git.zx2c4.com/wireguard-windows/
+  Installed from the official signed MSI (download.wireguard.com), verified by
+  its Authenticode signature (publisher "WireGuard LLC") before use.
+  "WireGuard" is a registered trademark of Jason A. Donenfeld.
+
+.NET runtime and libraries — Microsoft Corporation
+  Licence: MIT. https://github.com/dotnet/runtime
+  Microsoft.Extensions.Hosting and related packages: MIT.
+
+BouncyCastle.Cryptography — The Legion of the Bouncy Castle Inc.
+  Licence: MIT. https://www.bouncycastle.org/csharp/
+  Used for X25519 WireGuard key generation.
+
+Full package-by-package licence details, including versions and hashes, are in
+the CycloneDX SBOM shipped alongside this file (sbom.cdx.json).

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Renders every page of the WPF app with sample data to PNG (artifacts/screens) on the Windows runner,
+       and fails on any data-binding error. Lets the design be reviewed without a physical PC. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWPF>true</UseWPF>
+    <SelfContained>false</SelfContained>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- The app is a self-contained executable; the test only loads its types. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <NoWarn>$(NoWarn);CA1707;CA2007;CA1861;CA2000;CA1305;CA1062;CA1416;CA1515;CA1822</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FilterPhone.App\FilterPhone.App.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="catalog.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,46 @@
+<UserControl x:Class="FilterPhone.App.Views.WelcomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Like the phone app's welcome screen: join the service, or activate with a code. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="460" Margin="24,28,24,24">
+      <Grid Width="96" Height="96" HorizontalAlignment="Center">
+        <Ellipse Fill="{StaticResource PrimaryContainer}"/>
+        <Path Data="{StaticResource IconShield}" Style="{StaticResource Icon}" Width="54" Height="54" StrokeThickness="2"/>
+      </Grid>
+      <TextBlock Style="{StaticResource Display}" Margin="0,20,0,6" Text="FilterPhone למחשב"/>
+      <TextBlock TextAlignment="Center" FontSize="16" Foreground="{StaticResource Muted}" Text="סינון אינטרנט ותמונות לכל המחשב"/>
+
+      <StackPanel Margin="0,26,0,22">
+        <DockPanel Margin="0,6">
+          <Path Data="{StaticResource IconImage}" Style="{StaticResource Icon}" Margin="0,0,12,0"/>
+          <TextBlock FontSize="15" VerticalAlignment="Center" Text="סינון תמונות חכם — בכל אתר, לפי הרמה שתבחרו"/>
+        </DockPanel>
+        <DockPanel Margin="0,6">
+          <Path Data="{StaticResource IconApps}" Style="{StaticResource Icon}" Margin="0,0,12,0"/>
+          <TextBlock FontSize="15" VerticalAlignment="Center" Text="חסימת אתרים, רשתות חברתיות, דפדפנים אחרים וחנות Microsoft"/>
+        </DockPanel>
+        <DockPanel Margin="0,6">
+          <Path Data="{StaticResource IconLock}" Style="{StaticResource Icon}" Margin="0,0,12,0"/>
+          <TextBlock FontSize="15" VerticalAlignment="Center" Text="רק המנהל משנה הגדרות — אי אפשר לעקוף מהמחשב"/>
+        </DockPanel>
+      </StackPanel>
+
+      <Button Style="{StaticResource FilledButton}" Command="{Binding StartRegisterCommand}" AutomationProperties.Name="הצטרפות לשירות">
+        <StackPanel Orientation="Horizontal">
+          <Path Data="{StaticResource IconPersonAdd}" Style="{StaticResource Icon}" Stroke="White" Width="20" Height="20" Margin="0,0,10,0"/>
+          <TextBlock Text="הצטרפות לשירות" Foreground="White" FontWeight="Bold" FontSize="15"/>
+        </StackPanel>
+      </Button>
+      <Button Style="{StaticResource OutlinedButton}" Command="{Binding StartActivationCommand}" AutomationProperties.Name="יש לי קוד הפעלה">
+        <StackPanel Orientation="Horizontal">
+          <Path Data="{StaticResource IconKey}" Style="{StaticResource Icon}" Width="20" Height="20" Margin="0,0,10,0"/>
+          <TextBlock Text="יש לי קוד הפעלה" Foreground="{StaticResource Primary}" FontWeight="SemiBold" FontSize="15"/>
+        </StackPanel>
+      </Button>
+
+      <TextBlock Style="{StaticResource Hint}" TextAlignment="Center" Margin="8,16,8,0"
+                 Text="ההצטרפות: ממלאים פרטים ובוחרים מה לחסום ← הבקשה מגיעה אלינו ← אחרי הסדרת התשלום החיבור נפתח, והמחשב מתחבר לבד."/>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

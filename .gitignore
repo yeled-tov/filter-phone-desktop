@@ -1,8 +1,14 @@
-__pycache__/
-*.py[cod]
-build/
-dist/
-dist-installer/
-*.spec
+# .NET build output
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+.vs/
+TestResults/
+# Installer output and downloaded dependencies (verified in CI, never committed)
+installer/output/
+installer/deps/
+# Local Python harness environments
 .venv/
-venv/
+__pycache__/
