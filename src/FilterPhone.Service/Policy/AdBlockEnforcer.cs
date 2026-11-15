@@ -43,11 +43,15 @@ internal static class AdBlockEnforcer
         }
     }
 
-    /// <summary>Removes the extension and its settings, if we added them (pause, uninstall).</summary>
-    public static void RemoveAll(MachineState state)
+    /// <summary>
+    /// Removes the extension and its settings, if we added them (pause). With <paramref name="force"/> (uninstall)
+    /// it also removes our known entry when the state file was lost and the ownership flag is gone, so the
+    /// uninstall never leaves the ad-blocking policy behind.
+    /// </summary>
+    public static void RemoveAll(MachineState state, bool force = false)
     {
         ArgumentNullException.ThrowIfNull(state);
-        Remove(state);
+        Remove(state, force);
     }
 
     /// <summary>The force-install entries as Chrome reads them: "1", "2", … up to the first missing number.</summary>
@@ -125,9 +129,9 @@ internal static class AdBlockEnforcer
         return true;
     }
 
-    private static bool Remove(MachineState state)
+    private static bool Remove(MachineState state, bool force = false)
     {
-        if (!state.AdBlockForcelistOwned)
+        if (!state.AdBlockForcelistOwned && !force)
         {
             return false;
         }
@@ -149,6 +153,14 @@ internal static class AdBlockEnforcer
             }
         }
         Registry.LocalMachine.DeleteSubKeyTree(ExtensionKey, throwOnMissingSubKey: false);
+        // Don't leave an empty force-install list behind (so the Chrome policy key itself can be cleared on uninstall).
+        using (var forcelist = Registry.LocalMachine.OpenSubKey(ForcelistKey))
+        {
+            if (forcelist is not null && forcelist.ValueCount == 0 && forcelist.SubKeyCount == 0)
+            {
+                Registry.LocalMachine.DeleteSubKey(ForcelistKey, throwOnMissingSubKey: false);
+            }
+        }
         state.AdBlockForcelistOwned = false;
         state.Save();
         return true;

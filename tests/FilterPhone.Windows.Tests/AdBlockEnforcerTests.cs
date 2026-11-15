@@ -110,6 +110,20 @@ public sealed class AdBlockEnforcerTests : IDisposable
     }
 
     [Fact]
+    public void Force_removes_our_entry_even_after_the_state_file_was_lost()
+    {
+        SetForcelist(Other, AdBlockEnforcer.ForcelistEntry);
+        using (var policy = Registry.LocalMachine.CreateSubKey(AdBlockEnforcer.PolicyKey, writable: true))
+        {
+            policy.SetValue("defaultFiltering", "optimal");
+        }
+        // A fresh state (AdBlockForcelistOwned == false) stands in for a lost state file.
+        AdBlockEnforcer.RemoveAll(new MachineState(), force: true);
+        Assert.Equal(new[] { Other }, AdBlockEnforcer.ReadForcelist());
+        Assert.Null(Registry.LocalMachine.OpenSubKey(AdBlockEnforcer.ExtensionKey));
+    }
+
+    [Fact]
     public void Never_removes_or_reconfigures_an_extension_someone_else_installed()
     {
         SetForcelist(AdBlockEnforcer.ForcelistEntry);

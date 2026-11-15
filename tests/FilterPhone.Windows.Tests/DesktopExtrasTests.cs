@@ -88,4 +88,16 @@ public sealed class DesktopExtrasTests : IDisposable
         Assert.Equal(0, Current());                                    // exactly what was there before
         Assert.Empty(state.DesktopExtraBackup);
     }
+
+    [Fact]
+    public void RemoveAll_clears_our_value_even_when_the_state_file_was_lost()
+    {
+        // Our value is set in the registry, but the state (and its backup) is gone.
+        using (var key = Registry.LocalMachine.CreateSubKey(_copilot.KeyPath, writable: true))
+        {
+            key.SetValue(_copilot.Name, 1, Microsoft.Win32.RegistryValueKind.DWord);
+        }
+        DesktopExtrasEnforcer.RemoveAll(new MachineState());
+        Assert.Null(Current());                                        // removed, so no policy is left behind
+    }
 }

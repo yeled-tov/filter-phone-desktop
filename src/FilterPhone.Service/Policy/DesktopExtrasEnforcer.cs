@@ -36,7 +36,11 @@ internal static class DesktopExtrasEnforcer
         }
     }
 
-    /// <summary>Restores every value these toggles touched (uninstall / full cleanup).</summary>
+    /// <summary>
+    /// Restores every value these toggles touched (uninstall / full cleanup). When the state file was lost there
+    /// is no backup to restore from, so any value that still holds exactly what we set is deleted — the uninstall
+    /// must leave none of our policies behind even then.
+    /// </summary>
     public static void RemoveAll(MachineState state)
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -44,10 +48,24 @@ internal static class DesktopExtrasEnforcer
         {
             foreach (var v in values)
             {
-                Restore(state, v);
+                if (!Restore(state, v))
+                {
+                    ForceRemove(v);
+                }
             }
         }
         state.DesktopExtraBackup.Clear();
+    }
+
+    /// <summary>Deletes a value we set when there is no backup, only if it still holds exactly what we wrote.</summary>
+    private static void ForceRemove(PolicyValue v)
+    {
+        using var key = Registry.LocalMachine.OpenSubKey(v.KeyPath, writable: true);
+        if (key?.GetValue(v.Name) is { } cur
+            && Convert.ToString(cur, CultureInfo.InvariantCulture) == Convert.ToString(v.Value, CultureInfo.InvariantCulture))
+        {
+            key.DeleteValue(v.Name, throwOnMissingValue: false);
+        }
     }
 
     private static string Id(PolicyValue v) => v.KeyPath + "|" + v.Name;

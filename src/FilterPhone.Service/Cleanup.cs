@@ -46,10 +46,13 @@ internal static class Cleanup
             () => new TunnelController(loggers.CreateLogger<TunnelController>()).UninstallAsync(CancellationToken.None)).ConfigureAwait(false);
         failures += Step(log, "filtering CA",
             () => new TrustStore(loggers.CreateLogger<TrustStore>()).Remove(state.TrustedCaThumbprints));
+        // Ad blocking (a Chrome policy sub-key) before the browser restriction, so clearing the empty Chrome
+        // policy key afterwards finds nothing of ours left under it. force: true removes it even if the state
+        // file was lost.
+        failures += Step(log, "ad blocking extension", () => AdBlockEnforcer.RemoveAll(state, force: true));
+        failures += Step(log, "optional Windows blocks", () => DesktopExtrasEnforcer.RemoveAll(state));
         failures += await StepAsync(log, "browser restriction",
             () => new ChromeOnlyEnforcer(loggers.CreateLogger<ChromeOnlyEnforcer>()).RemoveAsync(state, CancellationToken.None)).ConfigureAwait(false);
-        failures += Step(log, "optional Windows blocks", () => DesktopExtrasEnforcer.RemoveAll(state));
-        failures += Step(log, "ad blocking extension", () => AdBlockEnforcer.RemoveAll(state));
         failures += Step(log, "secrets and state", () =>
         {
             SecretStore.DeleteAll();

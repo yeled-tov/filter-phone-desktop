@@ -230,10 +230,10 @@ internal sealed class ChromeOnlyEnforcer(ILogger<ChromeOnlyEnforcer> log)
             await PowerShellAsync($"Import-Module AppLocker; Set-AppLockerPolicy -XmlPolicy '{empty}'", ct).ConfigureAwait(false);
             await GpUpdateAsync(ct).ConfigureAwait(false);
         }
-        if (state.AppLockerMode == "csp")
-        {
-            await PowerShellAsync(CspRemove(CspExeClass, "EXE") + CspRemove(CspStoreClass, "StoreApps"), ct).ConfigureAwait(false);
-        }
+        // Always remove the AppLocker CSP policy, even when the state says "local" or the state was lost. A stale
+        // CSP policy is exactly what keeps the PC showing as "managed by your organization"; Remove-CimInstance of
+        // an instance that is not there is a no-op, so this is safe to run unconditionally.
+        await PowerShellAsync(CspRemove(CspExeClass, "EXE") + CspRemove(CspStoreClass, "StoreApps"), ct).ConfigureAwait(false);
         state.AppLockerMode = null;
         state.AppLockerPolicySha256 = null;
         RestoreMachinePolicies(state);
@@ -386,6 +386,46 @@ internal sealed class ChromeOnlyEnforcer(ILogger<ChromeOnlyEnforcer> log)
         return true;
     }
 
+    /// <summary>
+    /// Restores a policy from backup; and when there is no backup (the state file was lost, which must never
+    /// leave "managed by your organization" behind), deletes the value only if it still holds exactly what we
+    /// set, so the uninstall always clears our policies without touching anyone else's.
+    /// </summary>
+    private static void RestoreOrForceRemove(MachineState state, PolicyValue v)
+    {
+        var id = v.KeyPath + "|" + v.Name;
+        if (state.PolicyBackup.ContainsKey(id))
+        {
+            RestoreValue(state, v);
+            return;
+        }
+        using var key = Registry.LocalMachine.OpenSubKey(v.KeyPath, writable: true);
+        if (key?.GetValue(v.Name) is { } cur
+            && Convert.ToString(cur, CultureInfo.InvariantCulture) == Convert.ToString(v.Value, CultureInfo.InvariantCulture))
+        {
+            key.DeleteValue(v.Name, throwOnMissingValue: false);
+        }
+    }
+
+    /// <summary>Removes a policy key once it holds nothing of ours (and nothing else), so no empty shell is left.</summary>
+    private static void DeleteKeyIfEmpty(string path)
+    {
+        using (var key = Registry.LocalMachine.OpenSubKey(path))
+        {
+            if (key is null || key.ValueCount > 0 || key.SubKeyCount > 0)
+            {
+                return;
+            }
+        }
+        try
+        {
+            Registry.LocalMachine.DeleteSubKey(path, throwOnMissingSubKey: false);
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or IOException)
+        {
+        }
+    }
+
     /// <summary>Restores one value we set to what it was before (or removes it if it did not exist).</summary>
     private static void RestoreValue(MachineState state, PolicyValue v)
     {
@@ -417,9 +457,13 @@ internal sealed class ChromeOnlyEnforcer(ILogger<ChromeOnlyEnforcer> log)
     {
         foreach (var v in AllMachinePolicies())
         {
-            RestoreValue(state, v);
+            RestoreOrForceRemove(state, v);
         }
         state.PolicyBackup.Clear();
+        // Leave no empty policy shell behind: Chrome shows "managed by your organization" only while a value is
+        // present, but an empty key is still residue the uninstall should not leave.
+        DeleteKeyIfEmpty(MachinePolicies.ChromeKey);
+        DeleteKeyIfEmpty(MachinePolicies.StoreKey);
         try
         {
             File.Delete(Paths.DefaultAssociationsFile);
